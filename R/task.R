@@ -1,11 +1,7 @@
-require(httr)
-require(batchtools)
-source("auth.R")
-
 get_task_root <- function(){
-  task_path <- raveio::raveio_getopt('task_root')
+  task_path <- restbench_getopt('task_root')
   if(length(task_path) != 1 || is.na(task_path)){
-    task_path <- file.path(raveio::raveio_getopt('tensor_temp_path'), 'rave_workers')
+    task_path <- "~/rave_data/cache_dir/restbench"
   }
   if(!dir.exists(task_path)){
     dir.create(task_path, showWarnings = FALSE, recursive = TRUE, mode = "0777")
@@ -39,24 +35,18 @@ prepare_request <- function(){
       tokens = tokens
     ),
     timeStamp = time,
-    suggested_workers = raveio::raveio_getopt("max_worker")
+    suggested_workers = restbench_getopt("max_worker")
   ))
 }
 
-new_task <- function(fun, ..., task_name){
-  if(missing(task_name)){
-    task_name <- "noname"
-  }
-  task_dir <- get_task_path(task_name)
-  task_name <- attr(task_dir, 'task_name')
-  task_root <- attr(task_dir, 'task_root')
+new_task_internal <- function(task_root, task_dir, task_name, reg){
   suppressMessages({
 
     ..env <- environment()
 
-    reg <- batchtools::makeRegistry(file.dir = task_dir, work.dir = task_root,
-                             namespaces = dipsaus:::attached_packages(), make.default = FALSE)
-    batchtools::batchMap(fun, ..., reg = reg)
+    if(missing(reg)){
+      reg <- batchtools::loadRegistry(task_dir, make.default = FALSE, writeable = TRUE)
+    }
 
     ensure_registry <- function(writeable = FALSE){
       suppressMessages({
@@ -88,32 +78,26 @@ new_task <- function(fun, ..., task_name){
       if(task$collected){
         return(TRUE)
       }
-      ensure_registry()
-
       # load jobs
       s <- status()
       if(s$submitted < task$njobs){
         return(FALSE)
       }
-      if(s$running > 0){
-        return(FALSE)
-      }else {
+      if(s$done + s$error + s$expired >= task$njobs && s$running == 0){
         return(TRUE)
+      }else {
+        return(FALSE)
       }
     }
-    collect <- function(wait = FALSE, output = NULL){
+    collect <- function(){
       if(task$collected){
         return(task$results)
       }
       ensure_registry()
-      if(!resolved() && wait){
-        batchtools::waitForJobs(stop.on.error = TRUE, reg = reg)
+      while(!resolved()){
+        Sys.sleep(0.5)
       }
-      jc <- batchtools::makeJobCollection(reg = reg)
-      batchtools::doJobCollection(jc, output = output)
-      res <- lapply(reg$status$job.id, function(jid){
-        batchtools::loadResult(jid, reg = reg)
-      })
+      res <- batchtools::reduceResultsList(reg = task$reg)
       task$results <- res
       task$collected <- TRUE
       res
@@ -121,6 +105,12 @@ new_task <- function(fun, ..., task_name){
     clear <- function(){
       ensure_registry(TRUE)
       batchtools::clearRegistry(reg)
+    }
+    remove <- function(wait = 0.01){
+      ensure_registry(TRUE)
+      suppressMessages({
+        batchtools::removeRegistry(wait = wait, reg = task$reg)
+      })
     }
 
     task <- dipsaus::list_to_fastmap2(list(
@@ -137,41 +127,65 @@ new_task <- function(fun, ..., task_name){
       submit = submit,
       resolved = resolved,
       collect = collect,
-      clear = clear
+      clear = clear,
+      remove = remove
     ))
     task
   })
+}
+
+#' @export
+new_task <- function(fun, ..., task_name){
+  if(missing(task_name)){
+    task_name <- "noname"
+  }
+  task_dir <- get_task_path(task_name)
+  task_name <- attr(task_dir, 'task_name')
+  task_root <- attr(task_dir, 'task_root')
+  suppressMessages({
+
+    reg <- batchtools::makeRegistry(file.dir = task_dir, work.dir = task_root,
+                                    namespaces = attached_packages(), make.default = FALSE)
+    batchtools::batchMap(fun, ..., reg = reg)
+
+  })
+  new_task_internal(task_root, task_dir, task_name, reg)
 
 }
 
-# create a task
-task_name <- "test"
+#' @export
+restore_task <- function(task_name){
+  task_root <- get_task_root()
+  task_dir <- file.path(task_root, task_name)
+  if(!dir.exists(task_dir)){ return(NULL) }
 
-
-
-# Add the job(s)
-FUN <- function(x){
-  if(x == 9){
-    Sys.sleep(100)
-  }
-  if(x == 1){
-    stop()
-  }
-  c(x, Sys.getpid())
+  tryCatch({
+    new_task_internal(task_root, task_dir, task_name)
+  }, error = function(e){
+    NULL
+  })
 }
-task <- new_task(FUN, x = 1:8, task_name = 'test')
 
-resp <- task$submit(url = 'http://127.0.0.1:7516/new')
-httr::content(resp)
-task$status()
-task$resolved()
-task$reg$status
+# # create a task
+# task_name <- "test"
+#
+#
+#
+# # Add the job(s)
+# FUN <- function(x){
+#   if(x == 9){
+#     Sys.sleep(100)
+#   }
+#   if(x == 1){
+#     stop()
+#   }
+#   c(x, Sys.getpid())
+# }
+# task <- new_task(FUN, x = 1:8, task_name = 'test')
+#
+# resp <- task$submit(url = 'http://127.0.0.1:7033/jobs/new')
+# httr::content(resp)
+# task$status()
+# task$resolved()
+# task$reg$status
 # task$collect()
-#
-# batchtools::reduceResultsList(reg = task$reg)
-#
-# # Send the job
-#
-# reg <- loadRegistry(task$task_dir, make.default = FALSE, writeable = TRUE)
-# batchtools::getJobStatus(reg = reg)
-# batch

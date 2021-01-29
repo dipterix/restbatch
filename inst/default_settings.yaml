@@ -1,0 +1,4 @@
+modules:
+  jobs: '{system.file("scheduler/jobs.R", package = "restbench")}'
+options:
+  debug: no

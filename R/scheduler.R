@@ -12,30 +12,30 @@ compare_timeStamp <- function(s, now = Sys.time(), fmt = "%Y-%m-%d %H:%M:%S"){
 }
 
 get_user <- function(){
-  uid <- raveio::raveio_getopt("userid", default = NA)
+  uid <- restbench_getopt("userid", default = NA)
   if(is.na(uid)){
     uid <- dipsaus::session_uuid()
-    raveio::raveio_setopt(key = "userid", value = uid)
+    restbench_setopt(key = "userid", value = uid)
   }
   uid
 }
 get_username <- function(){
-  uname <- raveio::raveio_getopt("username", default = NA)
+  uname <- restbench_getopt("username", default = NA)
   if(is.na(uname)){
     user <- Sys.getenv('USER')
     rn <- sample(90000, 1)
     uname <- sprintf('%s-%d', user, rn)
-    raveio::raveio_setopt(key = "username", value = uname)
+    restbench_setopt(key = "username", value = uname)
   }
   uname
 }
 
 get_fakekey <- function(public = TRUE){
   if(public){
-    f <- system.file('scheduler/default_pubkey', package = 'raveio')
+    f <- system.file('default_pubkey', package = 'restbench')
     return(openssl::read_pubkey(openssl::bignum(readLines(f, n = 1))))
   } else {
-    f <- system.file('scheduler/default_key', package = 'raveio')
+    f <- system.file('default_key', package = 'restbench')
     return(openssl::read_key(openssl::bignum(readLines(f, n = 1))))
   }
 
@@ -44,7 +44,7 @@ private_key <- function(userid){
   uid <- get_user()
   re <- list()
   # Running as local service only get inbound request
-  if(getOption('raveio.anonymous_request', TRUE) && isTRUE(userid == uid)){
+  if(getOption('restbench.anonymous_request', TRUE) && isTRUE(userid == uid)){
     re[[1]] <- get_fakekey(public = FALSE)
   }
   # TODO: Find user private keys
@@ -55,7 +55,7 @@ public_key <- function(userid){
   my_uname <- get_user()
   re <- list()
   # Running as local service only get inbound request
-  if(getOption('raveio.anonymous_request', TRUE) && isTRUE(userid == my_uname)){
+  if(getOption('restbench.anonymous_request', TRUE) && isTRUE(userid == my_uname)){
     re[[1]] <- get_fakekey(public = TRUE)
   }
   # TODO: Find user private keys
@@ -134,7 +134,7 @@ validate_auth <- function(req, res) {
   body <- jsonlite::parse_json(body, simplifyVector = TRUE)
   time <- body$timeStamp
   request_age <- compare_timeStamp(time)
-  if(abs(request_age) > getOption("raveio.request_timeout", Inf)){
+  if(abs(request_age) > getOption("restbench.request_timeout", Inf)){
     # This request is made long time ago or faked, fail the auth
     res$status <- 401 # Unauthorized
     return(list(error="Your request has invalid timestamp. Please make sure your system time is synchronized to the world time."))
@@ -174,7 +174,7 @@ run_job <- function(req){
 
     suppressMessages({
       reg <- batchtools::loadRegistry(path, make.default = FALSE, writeable = TRUE)
-      reg$max.concurrent.jobs <- raveio::raveio_getopt('max_worker', default = 1L)
+      reg$max.concurrent.jobs <- restbench_getopt('max_worker', default = 1L)
       reg$max.concurrent.jobs <- min(reg$max.concurrent.jobs, suggested_workers)
 
       if(isTRUE(reg$cluster.functions$name == 'Interactive')){
@@ -188,13 +188,14 @@ run_job <- function(req){
     batchtools::submitJobs(reg = reg)
 
   }
-  # f(path)
   body <- jsonlite::parse_json(req$postBody, simplifyVector = TRUE)
-  proc <- callr::r_bg(f, args = list(path = body$path, suggested_workers = body$suggested_workers),
-                      supervise = TRUE)
-
+  if(getOption('restbench.debug', FALSE)){
+    f(path = body$path, suggested_workers = body$suggested_workers)
+  } else {
+    callr::r_bg(f, args = list(path = body$path, suggested_workers = body$suggested_workers),
+                supervise = TRUE)
+  }
   list(message = "Job submitted.")
-
 }
 
 

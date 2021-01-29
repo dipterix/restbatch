@@ -4,6 +4,6 @@
 #* @serializer json
 #* @post /new
 function(req) {
-  run_job <- getOption("raveio.func_newjob", raveio::run_job)
+  run_job <- getOption("restbench.func_newjob", restbench::run_job)
   return(run_job(req))
 }
