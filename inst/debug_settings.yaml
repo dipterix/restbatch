@@ -2,10 +2,11 @@ modules:
   jobs: '{system.file("scheduler/jobs.R", package = "restbench")}'
   validate: '{system.file("scheduler/validate.R", package = "restbench")}'
 options:
-  debug: no
-  require_auth: yes
+  debug: yes
+  require_auth: no
   request_timeout: .inf
   task_root: '{restbench::restbench_getopt("task_root")}'
   max_nodetime: 864000
   func_newjob: restbench:::run_jobs
   func_validate_server: restbench::handler_validate_server
+

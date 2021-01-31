@@ -1,0 +1,63 @@
+prepare_request <- function(){
+  uid <- get_user()
+  keys <- private_key(uid)
+
+  time <- get_timeStamp()
+  tokens <- sapply(keys, function(key){
+    encrypt_string(time, key = key)
+  })
+  dipsaus::list_to_fastmap2(list(
+    userid = uid,
+    username = get_username(),
+    tokens = tokens,
+    timeStamp = time,
+    suggested_workers = restbench_getopt("max_worker")
+  ))
+}
+
+#' @export
+request_server <- function(
+  url, body = list(), header = list(), method = c('POST', 'GET'), encode = 'json'){
+  method <- match.arg(method)
+  conf <- prepare_request()
+  dipsaus::list_to_fastmap2(header, conf)
+  conf <- as.list(conf)
+  names(conf) <- sprintf("restbench.%s", names(conf))
+
+  if(method == 'POST'){
+    f <- httr::POST
+  }else{
+    f <- httr::GET
+  }
+  res <- f(
+    url = url,
+    config = do.call(httr::add_headers, conf),
+    encode = encode,
+    body = body
+  )
+  res
+
+}
+
+#' @export
+request_task_query <- function(host, port, task_status = 'valid', protocol = 'http', path = 'jobs/query'){
+  url <- sprintf('%s://%s:%d/%s', protocol, host, port, path)
+  res <- request_server(url, body = list(status = task_status), method = 'POST')
+  content <- httr::content(res)
+
+  content <- do.call('rbind', lapply(content, function(item){
+    as.data.frame(item)
+  }))
+
+  res <- data.frame(
+    name = content$name,
+    status = as.character(factor(content$status, levels = c(0,1,2), labels = c("init", "running", "finish"))),
+    error = as.logical(content$error),
+    packed = as.logical(content$packed),
+    time_added = as.POSIXct(content$time_added, origin="1970-01-01")
+  )
+  attr(res, 'userid') <- get_user()
+  res
+}
+
+# Sweep, and collect tasks

@@ -1,18 +1,25 @@
+conf_sample <- function(file = stdout()){
+  yaml::write_yaml(list(
+    modules = list(
+      jobs = '{system.file("scheduler/jobs.R", package = "restbench")}',
+      validate = '{system.file("scheduler/validate.R", package = "restbench")}'
+    ),
+    options = list(
+      debug = FALSE,
+      require_auth = TRUE,
+      request_timeout = Inf,
+      task_root = '{restbench::restbench_getopt("task_root")}',
+      func_newjob = 'restbench::run_job',
+      func_validate_server = 'restbench::handler_validate_server'
+    )
+  ), file)
+}
+
 start_server_internal <- function(
   host = '127.0.0.1',
   port = 7033,
-  settings = system.file("default_settings.yaml", package = 'restbench')
+  settings = system.file("debug_settings.yaml", package = 'restbench')
 ){
-
-  # yaml::write_yaml(list(
-  #   modules = list(
-  #     jobs = '{system.file("scheduler/jobs.R", package = "restbench")}'
-  #   ),
-  #   options = list(
-  #     debug = FALSE
-  #   )
-  # ), 'inst/default_settings.yaml')
-
 
   plumber::pr_run(local({
 
@@ -44,14 +51,16 @@ start_server_internal <- function(
 
     # Construct Router
     root = plumber::pr()
-
     current <- root
     for(nm in names(modules)){
       current <- plumber::pr_mount(current, sprintf("/%s", nm), plumber::pr(glue::glue(modules[[nm]])))
     }
     # current$filter(name = "logger", expr = logger)
-    current$filter(name = "validate_auth", expr = validate_auth)
+    if(getOption("restbench.require_auth", TRUE)){
+      current$filter(name = "validate_auth", expr = handler_validate_auth)
+    }
     # validate_auth
+    current
   }), host = host, port = port)
 }
 
@@ -98,17 +107,17 @@ findPort <- function (port, mustWork = NA) {
 
 
 #' @export
-server_alive <- function(host = '127.0.0.1', port, protocol = 'http'){
-
-  server_root <- file.path(R_user_dir('restbench', 'cache'), 'servers')
-
-  alive <- FALSE
+server_alive <- function(port, host = '127.0.0.1', protocol = 'http', path = "validate/ping", ...){
 
   # check if the session is active
-  s <- rand_string()
-  task <- new_task(dipsaus::new_function2(alist(x=), {
-    c(!!s, Sys.getpid())
-  }), x = 1, task_name = "test connection")
+  task <- new_task(function(x){}, x = 1, task_name = "test connection")
+  task$host <- host
+  task$port <- port
+  task$protocol <- protocol
+  task$path_validate <- path
+
+  # host = '127.0.0.1'; port = 7033; protocol = 'http'
+  alive <- task$validate()
 
   on.exit({
     try({
@@ -116,24 +125,6 @@ server_alive <- function(host = '127.0.0.1', port, protocol = 'http'){
     })
   }, add = TRUE, after = TRUE)
 
-  tryCatch({
-
-    # host = '127.0.0.1'; port = 7033; protocol = 'http'
-    task$submit(sprintf('%s://%s:%d/jobs/new', protocol, host, port))
-    # task$collected <- FALSE
-
-    res <- task$collect()
-    res <- res[[1]]
-
-    if(!isTRUE(res[[1]] == s && res[[2]] != as.character(Sys.getpid()))){
-      stop("Invalid server.")
-    }
-
-    alive <- TRUE
-
-  }, error = function(e){
-
-  })
   alive
 }
 
@@ -149,7 +140,10 @@ start_server <- function(
   host = '127.0.0.1',
   port = 7033,
   settings = system.file("default_settings.yaml", package = 'restbench'),
-  protocol = 'http'
+  protocol = 'http',
+  path_validate = "validate/ping",
+  make_default = TRUE,
+  ...
 ){
   port <- as.integer(port)
   stopifnot(isTRUE(is.integer(port)))
@@ -168,7 +162,7 @@ start_server <- function(
   alive <- FALSE
   if(!portAvailable(port)){
     # host = '127.0.0.1'; port = 7033; protocol = 'http'
-    alive <- server_alive(host, port, protocol)
+    alive <- server_alive(host, port, protocol, path_validate)
     if(!alive){
       stop("Port: ", port, " is occupied or invalid.")
     }
@@ -179,6 +173,10 @@ start_server <- function(
   server_dir <- file.path(server_root, port)
 
   if(!alive){
+
+    # load the yaml file in case there are errors
+    load_yaml(settings)
+
     # check existing ports
     dir_create2(server_dir)
     # fs <- as.integer(list.dirs(server_root, recursive = FALSE, full.names = FALSE))
@@ -188,7 +186,7 @@ start_server <- function(
         command = R.home("Rscript"),
         args = c(
           "--no-save", "--no-restore",
-          "--default-packages=methods,datasets,utils,restbench",
+          "--default-packages=utils,restbench",
           "-e",
           sprintf('"restbench:::start_server_internal(host=\'%s\',port=%d,settings=\'%s\')"',
                   host, port, normalizePath(settings, mustWork = TRUE))
@@ -198,19 +196,24 @@ start_server <- function(
         wait = FALSE, minimized = TRUE, invisible = FALSE
       )
     } else {
-      system2(
-        command = R.home("Rscript"),
-        args = c(
-          "--no-save", "--no-restore",
-          "--default-packages=methods,datasets,utils,restbench",
-          "-e",
-          sprintf('"restbench:::start_server_internal(host=\'%s\',port=%d,settings=\'%s\')"',
-                  host, port, normalizePath(settings, mustWork = TRUE))
-        ),
-        stdout = file.path(server_dir, 'stdout.log'),
-        stderr = file.path(server_dir, 'stderr.log'),
-        wait = FALSE
-      )
+      # server_dir <- "/Users/beauchamplab/Library/Caches/org.R-project.R/R/restbench/servers/7033"
+      # host = '127.0.0.1'
+      # port = 7033
+      # settings = system.file("default_settings.yaml", package = 'restbench')
+      # protocol = 'http'
+
+      f <- tempfile()
+      on.exit({
+        unlink(f)
+      }, add = TRUE)
+
+      cmd <- sprintf('nohup "%s" --no-save --no-restore -e "restbench:::start_server_internal(host=\'%s\',port=%s,settings=\'%s\')" > "%s" 2> "%s" & disown', R.home('Rscript'), host, port, settings,
+                     normalizePath(file.path(server_dir, 'stdout.log'), mustWork = FALSE),
+                     normalizePath(file.path(server_dir, 'stderr.log'), mustWork = FALSE))
+
+      writeLines(cmd, f)
+
+      system2(command = Sys.which("bash"), sprintf('"%s"', normalizePath(f)), wait = TRUE)
     }
 
     item$native <- TRUE
@@ -225,6 +228,32 @@ start_server <- function(
     .globals$servers[[host]][[port]] <- item
   }
 
+  if(make_default){
+    options("restbench.default_server" = item)
+  }
+
+  message(sprintf("A restbench server started at %s://%s:%s", protocol, host, port))
+
   .globals$servers[[host]][[port]]
 }
 
+#' @export
+ensure_server <- function(host, port, ...){
+  item <- getOption("restbench.default_server", list())
+  if(missing(host)){
+    host <- item$host
+  }
+  if(missing(port)){
+    port <- item$port
+  }
+  if(is.null(host)){
+    host <- '127.0.0.1'
+  }
+  if(!isTRUE(is.integer(port))){
+    port <- 7033
+  }
+  if(!server_alive(host, port, ...)){
+    start_server(host, port, ...)
+  }
+  invisible()
+}
