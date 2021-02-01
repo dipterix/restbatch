@@ -161,13 +161,12 @@ start_server_internal <- function(
     .globals$paused <- TRUE
   }, add = TRUE, after = TRUE)
 
-  # future::plan(future::multisession, workers = getOption('restbench.max_concurrent_tasks', 1L) + 1)
-
   future::plan(future::multisession, workers = getOption('restbench.max_concurrent_tasks', 1L) + 1)
-  future::plan(list(
-    future::tweak(future::multisession, workers = getOption('restbench.max_concurrent_tasks', 1L) + 1),
-    future::tweak(future::multisession, workers = getOption('restbench.max_concurrent_jobs', 1L))
-  ))
+
+  # future::plan(list(
+  #   future::tweak(future::multisession, workers = getOption('restbench.max_concurrent_tasks', 1L) + 1),
+  #   future::tweak(future::multisession, workers = getOption('restbench.max_concurrent_jobs', 1L))
+  # ))
 
   on.exit({
     cat("Cleaning up...")

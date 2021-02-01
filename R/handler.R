@@ -30,10 +30,7 @@ run_task <- function(task, userid){
 
   future::future({
 
-    # A compromise needs to be made here
-    # batchtools does not work in slave nodes, hence force running in local machine
-    # If I set to other mode, then the batchtools won't start
-    # reg$cluster.functions <- batchtools::makeClusterFunctionsInteractive(external = FALSE)
+    # Override cluster functions here (inside of future)
     reg$cluster.functions <- batchtools::makeClusterFunctionsSocket(workers, 1)
 
     batchtools::sweepRegistry(reg = reg)

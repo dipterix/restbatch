@@ -25,9 +25,9 @@ devtools::load_all();restbench:::db_backup(T);restbench:::start_server_internal(
 # restbench:::server_alive(port = 7034)
 
 task <- restbench:::new_task(function(x){
-  # if(x == 2){
-  #   stop()
-  # }
+  if(x == 2){
+    stop()
+  }
   Sys.sleep(1)
   Sys.getpid()
 }, x = 1:10)
@@ -63,7 +63,7 @@ task$remove()
 request_server('http://127.0.0.1:7033/validate/shutdown')
 
 restbench::request_task_query('localhost', port = 7033)
-task <- restbench::restore_task('64d5010ac8f40ebd109b31817f2ccb04__noname__3JHXx9W3PUznsQJz')
+task <- restbench::restore_task('64d5010ac8f40ebd109b31817f2ccb04__noname__593M45PeEtTmkvvR')
 task$status()
 task$..view()
 task$collect()
