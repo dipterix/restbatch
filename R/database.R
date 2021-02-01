@@ -532,12 +532,16 @@ db_update_task_server <- function(task, req){
   }, error = function(e){
     FALSE
   })
-  wk <- as.integer(req_headers$restbench.suggested_workers)
-  if(!isTRUE(is.integer(wk))){
-    wk <- 1
-  } else if (wk > restbench_getopt('max_worker', default = 1L)){
-    wk <- restbench_getopt('max_worker', default = 1L)
+  wk <- task$reg$max.concurrent.jobs
+
+  wk <- as.integer(getOption('restbench.max_concurrent_jobs'))
+  if(!length(wk) || is.na(wk[[1]])){
+    wk <- as.integer(task$reg$max.concurrent.jobs)
+    if(!length(wk) || is.na(wk[[1]])){
+      wk <- 1L
+    }
   }
+  wk <- wk[[1]]
 
   if(nrow(existing)){
     # update

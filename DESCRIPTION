@@ -17,7 +17,7 @@ Imports:
     dipsaus,
     plumber,
     batchtools,
-    callr,
+    future,
     jsonlite,
     httr,
     httpuv,
@@ -25,4 +25,5 @@ Imports:
     DBI,
     glue,
     RSQLite,
-    stringr
+    stringr,
+    fastmap (>= 1.1.0)

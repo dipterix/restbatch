@@ -1,3 +1,6 @@
+server_scripts:
+  startup_script: '{system.file("scheduler/startup.R", package = "restbench")}'
+  batch_cluster: '{system.file("scheduler/cluster.R", package = "restbench")}'
 modules:
   jobs: '{system.file("scheduler/jobs.R", package = "restbench")}'
   validate: '{system.file("scheduler/validate.R", package = "restbench")}'

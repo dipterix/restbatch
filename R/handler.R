@@ -26,12 +26,17 @@ run_task <- function(task, userid){
   reg <- task$reg
 
   cat("Sending task: ", task$task_name, '\n')
-  workers <- getOption('restbench.max_concurrent_jobs', 1L)
 
-  future::future({
+  settings <- getOption("restbench.settings")
+
+  f <- future::future({
+    load_server_settings(settings)
 
     # Override cluster functions here (inside of future)
-    reg$cluster.functions <- batchtools::makeClusterFunctionsSocket(workers, 1)
+    # workers <- getOption('restbench.max_concurrent_jobs', 1L)
+    # reg$cluster.functions <- batchtools::makeClusterFunctionsSocket(workers, 1)
+
+    eval(parse(file = getOption("restbench.batch_cluster")))
 
     batchtools::sweepRegistry(reg = reg)
     batchtools::saveRegistry(reg = reg)
@@ -46,7 +51,8 @@ run_task <- function(task, userid){
 
   .globals$running[[task$task_name]] <- list(
     task = task,
-    userid = userid
+    userid = userid,
+    future = f
   )
 
 
@@ -61,11 +67,12 @@ handler_unpack_task <- function(req){
   # parse
   req_header <- as.list(req$HEADERS)
   userid <- req_header$restbench.userid
-  workers <- as.integer(req_header$restbench.suggested_workers)
-  if(!is.integer(workers)){
-    workers <- 1L
-  } else if(workers > max_worker){
-    workers <- max_worker
+
+  workers <- as.integer(getOption('restbench.max_concurrent_jobs'))
+  if(!length(workers) || is.na(workers[[1]])){
+    workers <- NULL
+  } else {
+    workers <- workers[[1]]
   }
 
   task_name = req_header$restbench.task_name
@@ -105,7 +112,9 @@ handler_unpack_task <- function(req){
   suppressMessages({
     reg <- batchtools::loadRegistry(path, work.dir = root,
                                     make.default = FALSE, writeable = TRUE)
-    reg$max.concurrent.jobs <- workers
+    if(!is.null(workers)){
+      reg$max.concurrent.jobs <- workers
+    }
     batchtools::saveRegistry(reg = reg)
   })
   task <- new_task_internal(root, path, task_name, reg)

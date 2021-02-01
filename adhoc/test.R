@@ -63,7 +63,7 @@ task$remove()
 request_server('http://127.0.0.1:7033/validate/shutdown')
 
 restbench::request_task_query('localhost', port = 7033)
-task <- restbench::restore_task('64d5010ac8f40ebd109b31817f2ccb04__noname__593M45PeEtTmkvvR')
+task <- restbench::restore_task('64d5010ac8f40ebd109b31817f2ccb04__noname__6g4wgWZwJqURvr1k')
 task$status()
 task$..view()
 task$collect()

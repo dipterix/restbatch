@@ -16,17 +16,52 @@ watch_tasks <- function(){
 
   for(nm in task_names){
     item <- .globals$running[[nm]]
-    try({
-      if(item$task$resolved()){
-        # task is resolved, ready for client to get results
-        cat("Task ", item$task$task_name, " finished, updating server database\n")
-        item$task$server_status <- 2L
-        db_update_task_server2(task = item$task, userid = item$userid)
-        .subset2(.globals$running, 'remove')(nm)
+
+    if(is.list(item)){
+      # check
+      # 1. submited, no error
+      # 2. resolved?
+
+      remove_task <- FALSE
+      server_status <- 1L
+
+      if(future::resolved(item$future)){
+        tryCatch({
+          future::value(item$future)
+        }, error = function(e){
+          cat("Error while submitting task:", item$task$task_name,'\n')
+          cat("Error message: ", e$message,'\n')
+          cat("Removing the task from the queue, set status as 'init'...",'\n')
+          remove_task <<- TRUE
+          server_status <<- 0L
+        })
+      }
+      if(!remove_task){
+        try({
+          if(item$task$resolved()){
+            # task is resolved, ready for client to get results
+            cat("Task ", item$task$task_name, " finished, updating server database\n")
+            remove_task <- TRUE
+            server_status <- 2L
+          }
+        })
+      }
+
+      if(remove_task){
+        tryCatch({
+          item$task$server_status <- server_status
+          db_update_task_server2(task = item$task, userid = item$userid)
+          .subset2(.globals$running, 'remove')(nm)
+        }, error = function(e){
+          message("Error while updating the database. Force dropping the task... (", e$message,')\n')
+          .subset2(.globals$running, 'remove')(nm)
+        })
         Sys.sleep(0.1)
         break
       }
-    })
+
+    }
+
   }
 
 
@@ -38,7 +73,7 @@ watch_tasks <- function(){
 
     if(max_tasks > running_tasks){
 
-      cat("Submitting ", max_tasks - running_tasks, " task(s).\n")
+      cat("Available slot(s):", max_tasks - running_tasks, ".\n")
 
       # run the first max_tasks-running_tasks tasks
       tasks <- .globals$tasks$mremove(max_tasks - running_tasks)
@@ -121,9 +156,12 @@ module_require_auth <- function(module, settings){
 
 
 load_server_settings <- function(settings){
-  settings <- yaml::read_yaml(settings)
+  if(!is.list(settings)){
+    settings <- yaml::read_yaml(settings)
+  }
   modules <- settings$modules
   opts <- settings$options
+  server_scripts <- settings$server_scripts
 
   for(nm in names(opts)){
 
@@ -145,6 +183,14 @@ load_server_settings <- function(settings){
   options('restbench.modules_require_auth_list' = modules_require_auth)
   options("restbench.settings" = settings)
 
+  # scripts related to server configurations
+  startup_script <- glue::glue(server_scripts$startup_script)
+  options("restbench.startup_script" = startup_script[file.exists(startup_script)])
+
+  batch_cluster <- glue::glue(server_scripts$batch_cluster)
+  options("restbench.batch_cluster" = batch_cluster[file.exists(batch_cluster)])
+
+
 }
 
 start_server_internal <- function(
@@ -161,12 +207,13 @@ start_server_internal <- function(
     .globals$paused <- TRUE
   }, add = TRUE, after = TRUE)
 
-  future::plan(future::multisession, workers = getOption('restbench.max_concurrent_tasks', 1L) + 1)
 
-  # future::plan(list(
-  #   future::tweak(future::multisession, workers = getOption('restbench.max_concurrent_tasks', 1L) + 1),
-  #   future::tweak(future::multisession, workers = getOption('restbench.max_concurrent_jobs', 1L))
-  # ))
+  tryCatch({
+    eval(parse(file = getOption("restbench.startup_script", NULL)))
+  }, error = function(e){
+    warning("[settings -> startup_script] is invalid script. Use default setup script")
+    future::plan(future::multisession, workers = getOption('restbench.max_concurrent_tasks', 1L) + 1)
+  })
 
   on.exit({
     cat("Cleaning up...")

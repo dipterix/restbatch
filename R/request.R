@@ -10,8 +10,7 @@ prepare_request <- function(){
     userid = uid,
     username = get_username(),
     tokens = tokens,
-    timeStamp = time,
-    suggested_workers = restbench_getopt("max_worker")
+    timeStamp = time
   ))
 }
 
