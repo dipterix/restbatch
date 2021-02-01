@@ -2,14 +2,15 @@ handler_validate_server <- getOption("restbench.func_validate_server", "restbenc
 if(!is.function(handler_validate_server)){
   handler_validate_server <- eval(parse(text = handler_validate_server))
 }
+debug <- getOption('restbench.debug', FALSE)
+
+auth_enabled_modules <- getOption('restbench.modules_require_auth_list')
 
 #* Ping and get validated information back from server
 #* @serializer json
 #* @post /ping
 function(req) {
-  if(getOption('restbench.debug', FALSE)){
-    assign('req', req, envir = globalenv())
-  }
+  if(debug){assign('req', req, envir = globalenv())}
   return(handler_validate_server(req))
 }
 
@@ -18,21 +19,37 @@ function(req) {
 #* @serializer json
 #* @post /shutdown
 function(req) {
-  if(getOption('restbench.debug', FALSE)){
-    assign('req', req, envir = globalenv())
-  }
+  if(debug){assign('req', req, envir = globalenv())}
+
   ns <- asNamespace('restbench')
 
-  uid <- ns$get_user()
-  req_header <- as.list(req$HEADERS)
-  userid <- req_header$restbench.userid
+  signal_stop <- FALSE
+  if('validate' %in% auth_enabled_modules){
+    uid <- ns$get_user()
+    req_header <- as.list(req$HEADERS)
+    userid <- req_header$restbench.userid
+    if(userid == uid){
+      signal_stop <- TRUE
+    }
+  } else {
+    signal_stop <- TRUE
+  }
 
-  if(userid == uid){
+
+  if(signal_stop){
     # shutdown
     later::later(function(){
-      do.call("quit", list(save = "no"))
+      tryCatch({
+        message("Soft-shutdown the server. Stopping and finalizing the web service.")
+        httpuv <- asNamespace('httpuv')
+        httpuv$.globals$paused <- TRUE
+      }, error = function(e){
+        # Running in a child session, safe to quit
+        httpuv::stopAllServers()
+      })
     }, delay = 3)
     return(list(message = "Shutting down..."))
+
   }
 
   return(list(error = "Invalid user authentication to shutdown the server."))

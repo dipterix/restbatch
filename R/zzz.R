@@ -11,5 +11,10 @@
 
   .globals <- dipsaus::fastmap2()
   .globals$servers <- dipsaus::fastmap2()
+  .globals$tasks <- fastmap::fastqueue()
+  .globals$running <- dipsaus::fastmap2()
+  .globals$paused <- TRUE
+  .globals$watchers <- 0
+  .globals$sql_conn <- NULL
   assign('.globals', .globals, envir = pkg)
 }

@@ -4,9 +4,14 @@ modules:
 options:
   debug: yes
   require_auth: no
+  modules_require_auth: 'jobs, validate'
+  anonymous_request: no
+  max_concurrent_tasks: 1
+  max_concurrent_jobs: 4
+  task_queue_interval: 1
   request_timeout: .inf
   task_root: '{restbench::restbench_getopt("task_root")}'
   max_nodetime: 864000
-  func_newjob: restbench:::run_jobs
+  func_newjob: restbench:::run_task
   func_validate_server: restbench::handler_validate_server
 

@@ -1,39 +1,59 @@
+request_authinfo <- function(req, key){
+  header <- as.list(req$HEADERS)
+  header[[sprintf('restbench.%s', key)]]
+}
+
+# task_name <- task$task_name; userid <- restbench:::get_user(); packed=F
+
 #' @export
-run_jobs <- function(task_name, userid, packed = FALSE){
+run_task <- function(task, userid){
 
   # This function will run in globalenv (callr will change its environment, hence need to load namespace)
 
-  ns <- asNamespace('restbench')
-  task <- ns$restore_task(task_name = task_name, userid = userid, .client = FALSE, .update_db = FALSE)
-  task$server_packed <- as.logical(packed)
+  # cat("Restoring task: ", task_name, '\n')
+  # task <- restore_task(task_name = task_name, userid = userid, .client = FALSE)
+
+  if(is.null(task)){
+    stop("Task not found on disk.")
+  }
 
   # run!
+  cat("Scheduling task: ", task$task_name, '\n')
   task$server_status <- 1L
-  ns$db_update_task_server2(task = task, userid = userid)
+  db_update_task_server2(task = task, userid = userid)
 
-  reg <- task$reload_registry(TRUE)
-  if(isTRUE(reg$cluster.functions$name == 'Interactive')){
-    # check whether new session need to be created
-    reg$cluster.functions <- batchtools::makeClusterFunctionsInteractive(external = TRUE)
-  }
-  # Limit the maximum number of concurrent jobs in the registry
-  batchtools::sweepRegistry(reg = reg)
-  batchtools::saveRegistry(reg = reg)
-  batchtools::submitJobs(reg = reg)
+  task$reload_registry(TRUE)
+  reg <- task$reg
 
-  Sys.sleep(0.3)
-  while(!task$resolved()){
-    Sys.sleep(1)
-  }
+  # check whether new session need to be created
+  # workers <- getOption('restbench.max_concurrent_jobs', 1L)
+  reg$cluster.functions <- batchtools::makeClusterFunctionsInteractive(external = FALSE)
 
-  # task is resolved, running=0, collected=1, ready for client to get results
-  task$server_status <- 2L
-  ns$db_update_task_server2(task = task, userid = userid)
+  cat("Sending task: ", task$task_name, '\n')
+
+  future::future({
+
+    batchtools::sweepRegistry(reg = reg)
+    batchtools::saveRegistry(reg = reg)
+
+    # This step may take time.
+    batchtools::submitJobs(reg = reg)
+    # batchtools::submitJobs(reg = reg, ids = 2:4)
+    batchtools::waitForJobs(reg = reg)
+
+    cat("Sent: ", task$task_name, '\n')
+  })
+
+  .globals$running[[task$task_name]] <- list(
+    task = task,
+    userid = userid
+  )
+
 
 }
 
 #' @export
-handler_parse_task <- function(req){
+handler_unpack_task <- function(req){
   # general flags
   debug <- getOption('restbench.debug', FALSE)
   max_worker <- restbench_getopt('max_worker', default = 1L)
@@ -68,12 +88,15 @@ handler_parse_task <- function(req){
       if(debug){
         message("Task path exists, overwrite in debug mode...")
         unlink(task_dir, recursive = TRUE)
-        unzip(normalizePath(f), exdir = get_task_root())
+        utils::unzip(normalizePath(f), exdir = get_task_root())
       }
     }
 
     # multipart <- mime::parse_multipart(req)
     # assign('multipart', multipart, envir = globalenv())
+    packed <- TRUE
+  } else {
+    packed <- FALSE
   }
 
   # restore task
@@ -86,32 +109,14 @@ handler_parse_task <- function(req){
     batchtools::saveRegistry(reg = reg)
   })
   task <- new_task_internal(root, path, task_name, reg)
+  task$server_packed <- packed
   task$status()
 
   # register to the database
   db_update_task_server(task, req)
 
-  run_f <- getOption('restbench.func_newjob', run_jobs)
-  if(!is.function(run_f)){
-    run_f <- eval(parse(text=run_f))
-  }
+  task
 
-  if(debug){
-    run_jobs(task_name, userid = userid, packed = packed)
-  } else {
-    callr::r_bg(
-      run_jobs,
-      args = list(
-        task_name = task_name,
-        userid = userid,
-        packed = packed
-      ),
-      supervise = TRUE,
-      stdout = file.path(path, 'restbench.out.log'),
-      stderr = file.path(path, 'restbench.err.log')
-    )
-  }
-  list(message = "Job submitted.")
 }
 
 #' @export
@@ -125,17 +130,24 @@ handler_query_task <- function(userid, status = 'valid'){
 
 #' @export
 handler_validate_server <- function(req){
-  req_header <- as.list(req$HEADERS)
-  userid <- req_header$restbench.userid
-  tokens <- req_header$restbench.tokens
+  userid <- request_authinfo(req, 'userid')
+  tokens <- request_authinfo(req, 'tokens')
 
-  keys <- private_key(userid)
-  key <- keys[[1]]
+  auth_enabled <- module_require_auth('validate')
 
-  token <- encrypt_string(tokens[[1]], key)
+  if(auth_enabled){
+    keys <- private_key(userid)
+    key <- keys[[1]]
+
+    token <- encrypt_string(tokens[[1]], key)
+  } else {
+    token <- NULL
+  }
+
 
   return(list(
-    token = token
+    token = token,
+    auth_enabled = auth_enabled
   ))
 
 }

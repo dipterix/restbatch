@@ -11,7 +11,7 @@ get_task_root <- function(){
 get_task_path <- function(task_name, asis = FALSE){
   task_name <- clean_db_entry(
     task_name, "[^A-Za-z0-9-_]",
-    msg = sprintf("Invalid task name [%s]. Can only contains letters, digits, and `-`, `_`", task_name))
+    msg = sprintf("[1] Invalid task name [%s]. Can only contains letters, digits, and `-`, `_`", task_name))
   uid <- get_user()
   if(!startsWith(task_name, paste0(uid, '__'))){
     task_name <- sprintf("%s__%s", uid, task_name)
@@ -37,7 +37,7 @@ new_task_internal <- function(task_root, task_dir, task_name, reg){
 
     if(missing(reg)){
       reg <- batchtools::loadRegistry(task_dir, work.dir = get_task_root(),
-                                      make.default = FALSE, writeable = TRUE)
+                                      make.default = FALSE, writeable = FALSE)
     }
 
     server_info <- dipsaus::fastmap2()
@@ -127,46 +127,49 @@ new_task_internal <- function(task_root, task_dir, task_name, reg){
         stop("Unable to reach the server. Job canceled.\nAdditional message: ", e$message)
       })
 
-      if(scode == 200){
-        # TODO: check whether the server returned expected messages (rev auth)
-
-        content <- httr::content(res)
-        # Submitted!
-        task$submited <- TRUE
-
-        server_info$host <- task$host
-        server_info$port <- task$port
-        server_info$path <- task$path_submit
-        server_info$protocol <- task$protocol
-        server_info$packed <- pack
-        if(!(is.list(content) && isTRUE(unlist(content$message) == "Job submitted."))){
-          warning("Job submitted, but got incorrect response from the server. Please check your server configurations and make sure you trust the the host.")
-        }
-
-        # update
-        db_update_task_client(task)
-
-        return(res)
-
-
-      } else {
-
-        # scode not 200
-        content <- tryCatch({
+      try({
+        if(scode == 200){
+          # TODO: check whether the server returned expected messages (rev auth)
 
           content <- httr::content(res)
-          content <- paste(unlist(content$error), collapse = "\n")
-          content
+          # Submitted!
+          task$submited <- TRUE
 
-        }, error = function(e){
-          "Unknown error while submitting the task"
-        })
+          server_info$host <- task$host
+          server_info$port <- task$port
+          server_info$path <- task$path_submit
+          server_info$protocol <- task$protocol
+          server_info$packed <- pack
+          if(!(is.list(content) && isTRUE(unlist(content$message) == "Job submitted."))){
+            warning("Job submitted, but got incorrect response from the server. Please check your server configurations and make sure you trust the the host.")
+          }
 
-        stop("Server error code: ", scode, ". Messages: ", content)
+          # update
+          db_update_task_client(task)
 
-      }
+          return(res)
 
 
+        } else {
+
+          # scode not 200
+          content <- tryCatch({
+
+            content <- httr::content(res)
+            content <- paste(unlist(content$error), collapse = "\n")
+            content
+
+          }, error = function(e){
+            "Unknown error while submitting the task"
+          })
+
+          stop("Server error code: ", scode, ". Messages: ", content)
+
+        }
+      })
+
+
+      res
     }
     resolved <- function(){
       if(task$collected){
@@ -177,7 +180,7 @@ new_task_internal <- function(task_root, task_dir, task_name, reg){
       if(s$submitted < task$njobs){
         return(FALSE)
       }
-      if(s$done + s$error + s$expired >= task$njobs && s$running == 0){
+      if(s$done + s$error >= task$njobs && s$running == 0){
         return(TRUE)
       }else {
         return(FALSE)
@@ -252,7 +255,12 @@ new_task_internal <- function(task_root, task_dir, task_name, reg){
       remove = remove,
       validate = validate,
       zip = zip,
-      reload_registry = ensure_registry
+      reload_registry = ensure_registry,
+
+      # debug
+      ..view = function(){
+        system(sprintf("open \"%s\"", task_dir))
+      }
     ))
     task
   })
@@ -265,7 +273,7 @@ new_task <- function(fun, ..., task_name, .temporary = FALSE){
   }
   task_name <- clean_db_entry(
     task_name, "[^A-Za-z0-9-_]",
-    msg = sprintf("Invalid task name [%s]. Can only contains letters, digits, and `-`, `_`", task_name))
+    msg = sprintf("[2] Invalid task name [%s]. Can only contains letters, digits, and `-`, `_`", task_name))
   task_dir <- get_task_path(task_name)
   task_name <- attr(task_dir, 'task_name')
   task_root <- attr(task_dir, 'task_root')
@@ -291,7 +299,7 @@ restore_task <- function(task_name, userid, .client = TRUE, .update_db = TRUE){
   # check database
   task_name <- clean_db_entry(
     task_name, "[^A-Za-z0-9-_]",
-    msg = sprintf("Invalid task name [%s]. Can only contains letters, digits, and `-`, `_`", task_name))
+    msg = sprintf("[3] Invalid task name [%s]. Can only contains letters, digits, and `-`, `_`", task_name))
 
   if(.client && missing(userid)){
     userid <- get_user()
@@ -339,3 +347,15 @@ restore_task <- function(task_name, userid, .client = TRUE, .update_db = TRUE){
 
 }
 
+
+#' @export
+queue_task <- function(task, userid){
+  .globals <- get('.globals')
+  .globals$tasks$add(list(task = task, userid = userid))
+
+  # Watch task
+  if(.globals$watchers == 0){
+    watch_tasks()
+  }
+
+}

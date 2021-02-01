@@ -1,17 +1,17 @@
 clean_db_entry <- function(entry, disallow = "[^a-zA-Z0-9]",
                            msg = "Invalid entry", strict = TRUE){
   entry <- stringr::str_trim(entry)
+  entry <- paste(entry, collapse = '')
 
   if(!isTRUE(entry != '')){
+    warning(msg)
     stop(msg)
-  }
-  if(length(entry) != 1){
-    stop("Invalid entry length.")
   }
   if(isFALSE(stringr::str_detect(entry, disallow))){
     return(entry)
   }
   if(strict){
+    warning(msg)
     stop(msg)
   }
   entry <- stringr::str_remove_all(entry, disallow)
@@ -35,7 +35,7 @@ db_init_tables <- function(conn){
     date_added = as.numeric(Sys.time())
   ))
 
-  DBI::dbWriteTable(conn, "restbenchtasksclient", data.frame(
+  DBI::dbCreateTable(conn, "restbenchtasksclient", data.frame(
     name = "",
     userid = "",
     submited = TRUE,
@@ -45,10 +45,10 @@ db_init_tables <- function(conn){
     serverip = "",
     serverport = 7033,
     removed = TRUE,
-    time_added = as.numeric(Sys.time())
+    time_added = 0.01
   ))
 
-  DBI::dbWriteTable(conn, "restbenchtasksserver", data.frame(
+  DBI::dbCreateTable(conn, "restbenchtasksserver", data.frame(
     name = "",
     userid = "",
     status = TRUE, # 0: inited, 1: running, 2: completed/error
@@ -58,7 +58,7 @@ db_init_tables <- function(conn){
     path = "",
     ncpu = 0,
     clientip = "",
-    time_added = as.numeric(Sys.time())
+    time_added = 0.01
   ))
 }
 
@@ -146,9 +146,23 @@ db_ensure <- function(close = FALSE){
 
   has_file <- file.exists(db_file)
 
-  conn <- DBI::dbConnect(RSQLite::SQLite(), dbname = db_file)
+  if(is.null(.globals$sql_conn)){
+    .globals$sql_conn <- DBI::dbConnect(RSQLite::SQLite(), dbname = db_file)
+  }
 
-  tbl <- DBI::dbListTables(conn)
+  tbl <- tryCatch({
+    DBI::dbListTables(.globals$sql_conn)
+  }, error = function(e){
+    suppressWarnings({
+      DBI::dbDisconnect(.globals$sql_conn)
+    })
+    .globals$sql_conn <- DBI::dbConnect(RSQLite::SQLite(), dbname = db_file)
+    DBI::dbListTables(.globals$sql_conn)
+  })
+
+  conn <- .globals$sql_conn
+
+  reinit <- FALSE
 
   if(!all(c(c("restbenchtasksclient", "restbenchtasksserver", "restbenchuser", "restbenchlocker")) %in% tbl)){
     # wrong db file
@@ -158,12 +172,16 @@ db_ensure <- function(close = FALSE){
       }
       DBI::dbDisconnect(conn)
       db_backup(drop = TRUE)
+
+      .globals$sql_conn <- DBI::dbConnect(RSQLite::SQLite(), dbname = db_file)
+      conn <- .globals$sql_conn
     }
-    db_init_tables(conn)
+    reinit <- TRUE
   }
 
-  conn <- DBI::dbConnect(RSQLite::SQLite(), dbname = db_file)
-
+  if(reinit){
+    db_init_tables(conn)
+  }
 
   if(close){
     DBI::dbDisconnect(conn)
@@ -214,8 +232,9 @@ db_adduser <- function(userid, private_key, username = NULL, overwrite = FALSE, 
   db_lock(conn, lock_duration = 10, wait = Inf)
   on.exit({
     db_unlock(conn)
+    Sys.sleep(0.1)
     DBI::dbDisconnect(conn)
-  }, add = TRUE, after = TRUE)
+  })
 
   # get existing user
   res <- DBI::dbSendQuery(conn, sprintf(
@@ -303,7 +322,7 @@ db_getuser <- function(userid, unique = FALSE){
   conn <- db_ensure(close = FALSE)
   on.exit({
     DBI::dbDisconnect(conn)
-  }, add = TRUE, after = TRUE)
+  })
 
   if(unique){
     res <- DBI::dbSendQuery(conn, sprintf(
@@ -331,14 +350,14 @@ db_get_task <- function(task_name, userid, client = TRUE, status = c("running", 
   if(!missing(task_name)){
     task_name <- clean_db_entry(
       task_name, "[^A-Za-z0-9-_]",
-      msg = sprintf("Invalid task name [%s]. Can only contains letters, digits, and `-`, `_`", task_name))
+      msg = sprintf("[4] Invalid task name [%s]. Can only contains letters, digits, and `-`, `_`", task_name))
   }
   status <- match.arg(status)
 
   conn <- db_ensure(close = FALSE)
   on.exit({
     DBI::dbDisconnect(conn)
-  }, add = TRUE)
+  })
 
 
 
@@ -435,17 +454,18 @@ db_update_task_client <- function(task){
   # get task
   existing <- db_get_task(task_name = task$task_name, userid = userid, client = TRUE, status = 'all')
 
-  conn <- db_ensure(close = FALSE)
-  db_lock(conn)
-  on.exit({
-    db_unlock(conn)
-    DBI::dbDisconnect(conn)
-  })
-
   has_error <- tryCatch({
     task$status()$error > 0
   }, error = function(e){
     FALSE
+  })
+
+  conn <- db_ensure(close = FALSE)
+  db_lock(conn)
+  on.exit({
+    db_unlock(conn)
+    Sys.sleep(0.1)
+    DBI::dbDisconnect(conn)
   })
 
   if(nrow(existing)){
@@ -473,11 +493,6 @@ db_update_task_client <- function(task){
 
 db_update_task_server2 <- function(task, userid){
 
-  conn <- db_ensure(close = FALSE)
-  on.exit({
-    DBI::dbDisconnect(conn)
-  })
-
   # assume task exists
   existing <- db_get_task(task_name = task$task_name, userid = userid, client = FALSE, status = 'all')
   if(!nrow(existing)){
@@ -488,6 +503,12 @@ db_update_task_server2 <- function(task, userid){
   }, error = function(e){
     FALSE
   })
+
+  conn <- db_ensure(close = FALSE)
+  on.exit({
+    DBI::dbDisconnect(conn)
+  })
+
   res <- DBI::dbSendQuery(conn, sprintf(
     'UPDATE restbenchtasksserver SET status="%d", packed="%d", error="%d", path="%s", removed="%d" WHERE userid="%s" AND name="%s";',
     task$server_status, task$server_packed, has_error, task$task_dir, !dir.exists(task$task_dir), userid, task$task_name
@@ -506,13 +527,6 @@ db_update_task_server <- function(task, req){
   # get task
   existing <- db_get_task(task_name = task$task_name, userid = userid, client = FALSE, status = 'all')
 
-  conn <- db_ensure(close = FALSE)
-  db_lock(conn)
-  on.exit({
-    db_unlock(conn)
-    DBI::dbDisconnect(conn)
-  })
-
   has_error <- tryCatch({
     task$status()$error > 0
   }, error = function(e){
@@ -526,27 +540,29 @@ db_update_task_server <- function(task, req){
   }
 
   if(nrow(existing)){
-    update_str <- sprintf(
+    # update
+    sql_str <- sprintf(
       'UPDATE restbenchtasksserver SET status="%d", packed="%d", error="%d", path="%s", removed="%d" WHERE userid="%s" AND name="%s";',
       task$server_status, task$server_packed, has_error, task$task_dir, !dir.exists(task$task_dir), userid, task$task_name
     )
-
-    # update
-    res <- DBI::dbSendQuery(conn, update_str)
-
   } else {
     # insert
-    if(!length(task$server_status)){
-      task$server_status <- 0L
-    }
-
-    # dput(names(as.data.frame(dplyr::tbl(conn, 'restbenchtasksserver'))))
-    res <- DBI::dbSendQuery(conn, sprintf(
+    sql_str <- sprintf(
       'INSERT INTO restbenchtasksserver ("name", "userid", "packed", "status", "error", "path", "ncpu", "clientip", "removed", "time_added") VALUES ("%s", "%s", "%d", "%d", "%d", "%s", "%d", "%s", "%d", "%.3f");',
       task$task_name, userid, task$server_packed, task$server_status, has_error, task$task_dir, wk, req$REMOTE_ADDR,
       !dir.exists(task$task_dir), as.numeric(Sys.time())
-    ))
+    )
+
   }
+  conn <- db_ensure(close = FALSE)
+  db_lock(conn)
+  on.exit({
+    db_unlock(conn)
+    Sys.sleep(0.1)
+    DBI::dbDisconnect(conn)
+  })
+
+  res <- DBI::dbSendQuery(conn, sql_str)
   info <- DBI::dbGetInfo(res)
   DBI::dbClearResult(res)
   invisible(info)
@@ -561,13 +577,13 @@ list_tasks <- function(status = c("valid", "running", "init", "finish", "all")){
 
 # Number of running tasks on the local server (server dev-use only)
 server_summary <- function(include_expired = TRUE){
-  conn <- db_ensure(close = FALSE)
-  on.exit({
-    DBI::dbDisconnect(conn)
-  }, add = TRUE)
   if(include_expired){
+    extra_cond <- ''
+  } else {
     extra_cond <- sprintf('AND time_added>"%.3f"', as.numeric(Sys.time()) - getOption("restbench.max_nodetime", 60*60*24*10))
   }
+  conn <- db_ensure(close = FALSE)
+  on.exit({ DBI::dbDisconnect(conn) })
   res <- DBI::dbSendQuery(conn, sprintf('SELECT count(*) as count FROM restbenchtasksserver WHERE status=1 %s;', extra_cond))
   running <- DBI::dbFetch(res)
   DBI::dbClearResult(res)

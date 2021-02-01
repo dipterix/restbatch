@@ -1,18 +1,163 @@
+# TODO: inspect try catch
+
+
+watch_tasks <- function(){
+
+  debug <- getOption('restbench.debug', FALSE)
+
+  if(.globals$paused){
+    if(debug){
+      cat("Watch dog is sleeping.\n")
+    }
+    return(invisible())
+  }
+
+  task_names <- names(.globals$running)
+
+  for(nm in task_names){
+    item <- .globals$running[[nm]]
+    if(debug){
+      if(item$task$resolved()){
+        # task is resolved, ready for client to get results
+        cat("Task ", item$task$task_name, " finished, updating server database\n")
+        item$task$server_status <- 2L
+        db_update_task_server2(task = item$task, userid = item$userid)
+        .subset2(.globals$running, 'remove')(nm)
+        Sys.sleep(0.1)
+        break
+      }
+    } else {
+      try({
+        if(item$task$resolved()){
+          # task is resolved, ready for client to get results
+          cat("Task ", item$task$task_name, " finished, updating server database\n")
+          item$task$server_status <- 2L
+          db_update_task_server2(task = item$task, userid = item$userid)
+          .subset2(.globals$running, 'remove')(nm)
+          Sys.sleep(0.1)
+          break
+        }
+      })
+    }
+
+  }
+
+
+  if(.globals$tasks$size() > 0){
+
+    smry <- server_summary(include_expired = FALSE)
+    running_tasks <- smry[['running']]
+    max_tasks <- getOption("restbench.max_concurrent_tasks", 1L)
+
+    if(max_tasks > running_tasks){
+
+      cat("Submitting ", max_tasks - running_tasks, " task(s).\n")
+
+      # run the first max_tasks-running_tasks tasks
+      tasks <- .globals$tasks$mremove(max_tasks - running_tasks)
+
+      # This is a bad name, will change it later to handler_submittask
+      run_task <- getOption('restbench.func_newjob', "restbench::run_task")
+      if(!is.function(run_task)){
+        run_task <- eval(parse(text=run_task))
+      }
+
+      lapply(tasks, function(item){
+        if(is.null(item)){ return() }
+        cat("Starting task:", item$task$task_name, '\n')
+
+        run_task(item$task, userid = item$userid)
+
+      })
+    }
+
+  }
+
+
+  watch_later()
+
+}
+
+watch_later <- function(){
+
+  if(.globals$paused){
+    return()
+  }
+
+  if(.globals$watchers == 0){
+
+    interval <- getOption('restbench.task_queue_interval', 1)
+    interval <- max(interval, 0.1)
+    interval <- min(interval, 10)
+
+    later::later(function(){
+      # cat("Watching tasks\n")
+      .globals$watchers <- 0
+
+      watch_later()
+
+      watch_tasks()
+
+    }, delay = interval)
+
+    .globals$watchers <- .globals$watchers + 1
+  }
+}
+
+
+
+#' @export
 conf_sample <- function(file = stdout()){
-  yaml::write_yaml(list(
-    modules = list(
-      jobs = '{system.file("scheduler/jobs.R", package = "restbench")}',
-      validate = '{system.file("scheduler/validate.R", package = "restbench")}'
-    ),
-    options = list(
-      debug = FALSE,
-      require_auth = TRUE,
-      request_timeout = Inf,
-      task_root = '{restbench::restbench_getopt("task_root")}',
-      func_newjob = 'restbench::run_job',
-      func_validate_server = 'restbench::handler_validate_server'
-    )
-  ), file)
+  s <- readLines(system.file('default_settings.yaml', package = 'restbench'))
+  writeLines(s, file)
+  # yaml::write_yaml(list(
+  #   modules = list(
+  #     jobs = "{system.file(\"scheduler/jobs.R\", package = \"restbench\")}",
+  #     validate = "{system.file(\"scheduler/validate.R\", package = \"restbench\")}"
+  #   ),
+  #   options = list(
+  #     debug = FALSE,
+  #     require_auth = TRUE,
+  #     modules_require_auth = "jobs, validate",
+  #     request_timeout = Inf,
+  #     task_root = "{restbench::restbench_getopt(\"task_root\")}",
+  #     max_nodetime = 864000L,
+  #     func_newjob = "restbench:::run_task",
+  #     func_validate_server = "restbench::handler_validate_server"
+  #   )), file)
+}
+
+# only use it in the server
+module_require_auth <- function(module, settings){
+  module %in% getOption('restbench.modules_require_auth_list')
+}
+
+
+load_server_settings <- function(settings){
+  settings <- yaml::read_yaml(settings)
+  modules <- settings$modules
+  opts <- settings$options
+
+  for(nm in names(opts)){
+
+    val <- opts[[nm]]
+    if(is.character(val)){
+      val <- glue::glue(val)
+    }
+
+    do.call("options", structure(list(val), names = sprintf('restbench.%s', nm)))
+  }
+  # Settings to set options on modules need authentication
+  modules_require_auth <- unlist(
+    stringr::str_split(getOption("restbench.modules_require_auth",
+                                 paste(names(modules), collapse = ',')), "[, ]+"))
+  require_auth <- getOption("restbench.require_auth", TRUE)
+  if(!require_auth){
+    modules_require_auth <- NULL
+  }
+  options('restbench.modules_require_auth_list' = modules_require_auth)
+  options("restbench.settings" = settings)
+
 }
 
 start_server_internal <- function(
@@ -21,46 +166,51 @@ start_server_internal <- function(
   settings = system.file("debug_settings.yaml", package = 'restbench')
 ){
 
+  settings <- normalizePath(settings, mustWork = TRUE)
+  load_server_settings(settings)
+  .globals$paused <- FALSE
+
+  on.exit({
+    .globals$paused <- TRUE
+  }, add = TRUE, after = TRUE)
+
+  options(future.fork.enable = TRUE)
+  # future::plan(future::multicore, workers = getOption('restbench.max_concurrent_tasks', 1L) + 1)
+  future::plan(future::multisession, workers = getOption('restbench.max_concurrent_tasks', 1L) + 1)
+  on.exit({
+    cat("Cleaning up...")
+    future::plan(future::sequential)
+    cat("Done")
+  })
+
   plumber::pr_run(local({
 
     settings <- yaml::read_yaml(settings)
     modules <- settings$modules
-    opts <- settings$options
-
-    for(nm in names(opts)){
-
-      val <- opts[[nm]]
-      if(is.character(val)){
-        val <- glue::glue(val)
-      }
-
-      do.call("options", structure(list(val), names = sprintf('restbench.%s', nm)))
-    }
-
-    # Loggers
-    # source("logger.R", local = TRUE)
-    # logger <- function(req){
-    #   cat(as.character(Sys.time()), "-",
-    #       req$REQUEST_METHOD, req$PATH_INFO, "-",
-    #       req$HTTP_USER_AGENT, "@", req$REMOTE_ADDR, "\n")
-    #   plumber::forward()
-    # }
-
-    # Authenrication module
-    # source("auth.R", local = TRUE)
+    modules_require_auth <- getOption('restbench.modules_require_auth_list')
 
     # Construct Router
     root = plumber::pr()
     current <- root
+
+    # modules require validations
+
     for(nm in names(modules)){
-      current <- plumber::pr_mount(current, sprintf("/%s", nm), plumber::pr(glue::glue(modules[[nm]])))
+      mod <- plumber::pr(glue::glue(modules[[nm]]))
+      if(nm %in% modules_require_auth){
+        mod$filter(name = "validate_auth", expr = handler_validate_auth)
+      }
+      current <- plumber::pr_mount(current, sprintf("/%s", nm), mod)
     }
     # current$filter(name = "logger", expr = logger)
-    if(getOption("restbench.require_auth", TRUE)){
-      current$filter(name = "validate_auth", expr = handler_validate_auth)
-    }
     # validate_auth
+
+    options("restbench.active_server" = current)
+
+    current$setDebug(debug = getOption("restbench.debug", TRUE))
+
     current
+
   }), host = host, port = port)
 }
 
@@ -110,7 +260,7 @@ findPort <- function (port, mustWork = NA) {
 server_alive <- function(port, host = '127.0.0.1', protocol = 'http', path = "validate/ping", ...){
 
   # check if the session is active
-  task <- new_task(function(x){}, x = 1, task_name = "test connection")
+  task <- new_task(function(x){}, x = 1, task_name = "test_connection")
   task$host <- host
   task$port <- port
   task$protocol <- protocol
