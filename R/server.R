@@ -16,7 +16,7 @@ watch_tasks <- function(){
 
   for(nm in task_names){
     item <- .globals$running[[nm]]
-    if(debug){
+    try({
       if(item$task$resolved()){
         # task is resolved, ready for client to get results
         cat("Task ", item$task$task_name, " finished, updating server database\n")
@@ -26,20 +26,7 @@ watch_tasks <- function(){
         Sys.sleep(0.1)
         break
       }
-    } else {
-      try({
-        if(item$task$resolved()){
-          # task is resolved, ready for client to get results
-          cat("Task ", item$task$task_name, " finished, updating server database\n")
-          item$task$server_status <- 2L
-          db_update_task_server2(task = item$task, userid = item$userid)
-          .subset2(.globals$running, 'remove')(nm)
-          Sys.sleep(0.1)
-          break
-        }
-      })
-    }
-
+    })
   }
 
 
@@ -174,9 +161,14 @@ start_server_internal <- function(
     .globals$paused <- TRUE
   }, add = TRUE, after = TRUE)
 
-  options(future.fork.enable = TRUE)
-  # future::plan(future::multicore, workers = getOption('restbench.max_concurrent_tasks', 1L) + 1)
+  # future::plan(future::multisession, workers = getOption('restbench.max_concurrent_tasks', 1L) + 1)
+
   future::plan(future::multisession, workers = getOption('restbench.max_concurrent_tasks', 1L) + 1)
+  future::plan(list(
+    future::tweak(future::multisession, workers = getOption('restbench.max_concurrent_tasks', 1L) + 1),
+    future::tweak(future::multisession, workers = getOption('restbench.max_concurrent_jobs', 1L))
+  ))
+
   on.exit({
     cat("Cleaning up...")
     future::plan(future::sequential)

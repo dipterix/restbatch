@@ -25,13 +25,16 @@ run_task <- function(task, userid){
   task$reload_registry(TRUE)
   reg <- task$reg
 
-  # check whether new session need to be created
-  # workers <- getOption('restbench.max_concurrent_jobs', 1L)
-  reg$cluster.functions <- batchtools::makeClusterFunctionsInteractive(external = FALSE)
-
   cat("Sending task: ", task$task_name, '\n')
+  workers <- getOption('restbench.max_concurrent_jobs', 1L)
 
   future::future({
+
+    # A compromise needs to be made here
+    # batchtools does not work in slave nodes, hence force running in local machine
+    # If I set to other mode, then the batchtools won't start
+    # reg$cluster.functions <- batchtools::makeClusterFunctionsInteractive(external = FALSE)
+    reg$cluster.functions <- batchtools::makeClusterFunctionsSocket(workers, 1)
 
     batchtools::sweepRegistry(reg = reg)
     batchtools::saveRegistry(reg = reg)
