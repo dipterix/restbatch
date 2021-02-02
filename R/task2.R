@@ -387,3 +387,97 @@ restore_task <- function(task_name, userid, .client = TRUE, .update_db = TRUE){
 
 }
 
+#' @export
+new_task2 <- function(fun, ..., task_name = "Noname") {
+  stopifnot(is.function(fun))
+  task <- new_task(fun = fun, ..., task_name = task_name, .temporary = FALSE)
+
+  ret <- new.env(parent = emptyenv())
+
+  ret$reload_registry <- function(){
+    task$reload_registry(writeable = FALSE)
+  }
+
+  # active binding
+  makeActiveBinding("port", function(v){
+    if(!missing(v)){
+      v <- as.integer(v)
+      stopifnot(length(v) == 1 && isTRUE(v > 0 && v < 65535))
+      task$port <- v
+    }
+    task$port
+  }, ret)
+
+  makeActiveBinding("protocol", function(v){
+    if(!missing(v)){
+      stopifnot(isTRUE(v %in% c("http", "https")))
+      task$protocol <- v
+    }
+    task$protocol
+  }, ret)
+
+  makeActiveBinding("submitted_to", function(){
+    list(
+      url = sprintf("%s://%s:%d/", task$protocol, task$submitted_to$host, task$submitted_to$port),
+      host = task$submitted_to$host,
+      port = task$submitted_to$port
+    )
+  }, ret)
+
+  members <- names(task)
+  members <- members[!(startsWith(members, '..') | members %in% names(ret))]
+
+  read_onlys <- c('njobs', 'task_dir', 'results', 'task_root', 'reg', 'task_name')
+
+  lapply(members, function(nm){
+    if(is.function(task[[nm]])){
+      ret[[nm]] <- task[[nm]]
+    } else if(nm %in% read_onlys){
+      makeActiveBinding(nm, function(){
+        task[[nm]]
+      }, ret)
+    } else {
+      makeActiveBinding(nm, function(v){
+        if(!missing(v)){
+          task[[nm]] <- v
+        }
+        task[[nm]]
+      }, ret)
+    }
+    return(NULL)
+  })
+
+  class(ret) <- "restbench.task.client"
+
+
+  lockEnvironment(ret)
+  ret
+
+}
+
+#' @export
+print.restbench.task.client <- function(x, ...){
+  cat("Task (client proxy, restbench package)\n")
+  cat(sprintf("Task name : [%s]\n", x$task_name))
+  cat(sprintf("Total jobs: %d\n", x$njobs))
+  if(x$submitted){
+    cat(sprintf("Submitted to: %s\n", x$submitted_to$url))
+
+    s <- x$local_status()
+    print(s)
+
+    if(x$collected){
+      cat("\n*The task result has been collected.")
+      cat("Use `task$collect()` or `task$results` to get the results\n")
+    } else if (s$running + s$error >= x$njobs){
+      cat("\n*The task is finished, but the result has not been collected yet.\n")
+      cat("Use `task$collect()` to collect the results.\n")
+    } else {
+      cat("\n*Use `task$resolved()` to check whether the task has finished.\n")
+    }
+  } else {
+    cat("Submitted to: [NA]\n")
+    cat("\n* Use `task$submit()` to submit this task\n")
+  }
+
+}
