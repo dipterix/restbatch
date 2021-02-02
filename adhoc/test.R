@@ -1,14 +1,13 @@
 require(restbench)
 
 f <- '~/Desktop/junk/settings.yaml'
-conf <- yaml::read_yaml('inst/debug_settings.yaml')
+conf <- yaml::read_yaml('inst/default_settings.yaml')
 conf$options$debug = TRUE
 conf$options$require_auth = T
 yaml::write_yaml(conf, f)
 restbench:::db_backup(T)
 
-# devtools::load_all();restbench:::db_backup(T);p = restbench::start_server(port = 7033)
-
+devtools::load_all();restbench:::db_backup(T);p = restbench::start_server(port = 7033)
 
 
 
@@ -17,7 +16,7 @@ restbench:::db_backup(T)
 #   writeLines("restbench:::start_server_internal(port = 7034, settings = '~/Desktop/junk/settings.yaml')", ff)
 #   ff
 # }))
-devtools::load_all();restbench:::db_backup(T);restbench:::start_server_internal(port = 7034, settings = '~/Desktop/junk/settings.yaml')
+# devtools::load_all();restbench:::db_backup(T);restbench:::start_server_internal(port = 7034, settings = '~/Desktop/junk/settings.yaml')
 
 # p = restbench::start_server(port = 7033)
 
@@ -41,7 +40,7 @@ task <- restbench:::new_task(function(x){
 # task$port <- 7034
 
 # res <- task$validate(); res
-res <- task$submit(pack = F); res
+res <- task$submit(pack = F); httr::content(res)
 
 # restbench:::db_backup(T)
 # restbench:::db_get_task(userid = restbench:::get_user(), client = FALSE, status = 'all')
@@ -52,25 +51,24 @@ restbench::request_task_list('localhost', port = 7033)
 task$collect()
 
 
-task$status()
+task$local_status()
 task$task_name
 
-task$path_submit <- 'validate/shutdown'
-task$submit()
+# task$remove()
 
-task$remove()
-
-res <- request_server('http://127.0.0.1:7033/jobs/status', body = list(task_name = '64d5010ac8f40ebd109b31817f2ccb04__noname__4fOMLrmlYCzdosaO'))
+res <- request_server('http://127.0.0.1:7033/jobs/status', body = list(task_name = '64d5010ac8f40ebd109b31817f2ccb04__noname__eODgK1F4aToedcFG'))
 httr::content(res)
 
+task$server_status()
+
 restbench::request_task_list('localhost', port = 7033)
-task <- restbench::restore_task('64d5010ac8f40ebd109b31817f2ccb04__noname__1t2rNaoLOMbXmeyy')
+task <- restbench:::restore_task('64d5010ac8f40ebd109b31817f2ccb04__noname__eODgK1F4aToedcFG')
 task$resolved()
-task$status()
+task$local_status()
 
 task$..view()
 task$collect()
 
-request_server('http://127.0.0.1:7033/validate/shutdown')
+restbench::server_kill(port = 7033)
 
 

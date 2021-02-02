@@ -461,7 +461,7 @@ db_update_task_client <- function(task){
   existing <- db_get_task(task_name = task$task_name, userid = userid, client = TRUE, status = 'all')
 
   has_error <- tryCatch({
-    task$status()$error > 0
+    task$local_status()$error > 0
   }, error = function(e){
     FALSE
   })
@@ -505,7 +505,7 @@ db_update_task_server2 <- function(task, userid){
     stop("Task not found on the server.")
   }
   has_error <- tryCatch({
-    task$status()$error > 0
+    task$local_status()$error > 0
   }, error = function(e){
     FALSE
   })
@@ -517,7 +517,7 @@ db_update_task_server2 <- function(task, userid){
 
   res <- DBI::dbSendQuery(conn, sprintf(
     'UPDATE restbenchtasksserver SET status="%d", packed="%d", error="%d", path="%s", removed="%d" WHERE userid="%s" AND name="%s";',
-    task$server_status, task$server_packed, has_error, task$task_dir, !dir.exists(task$task_dir), userid, task$task_name
+    task$..server_status, task$..server_packed, has_error, task$task_dir, !dir.exists(task$task_dir), userid, task$task_name
   ))
 
   info <- DBI::dbGetInfo(res)
@@ -534,7 +534,7 @@ db_update_task_server <- function(task, req){
   existing <- db_get_task(task_name = task$task_name, userid = userid, client = FALSE, status = 'all')
 
   has_error <- tryCatch({
-    task$status()$error > 0
+    task$local_status()$error > 0
   }, error = function(e){
     FALSE
   })
@@ -553,13 +553,13 @@ db_update_task_server <- function(task, req){
     # update
     sql_str <- sprintf(
       'UPDATE restbenchtasksserver SET status="%d", packed="%d", error="%d", path="%s", removed="%d" WHERE userid="%s" AND name="%s";',
-      task$server_status, task$server_packed, has_error, task$task_dir, !dir.exists(task$task_dir), userid, task$task_name
+      task$..server_status, task$..server_packed, has_error, task$task_dir, !dir.exists(task$task_dir), userid, task$task_name
     )
   } else {
     # insert
     sql_str <- sprintf(
       'INSERT INTO restbenchtasksserver ("name", "userid", "packed", "status", "error", "path", "ncpu", "clientip", "removed", "time_added") VALUES ("%s", "%s", "%d", "%d", "%d", "%s", "%d", "%s", "%d", "%.3f");',
-      task$task_name, userid, task$server_packed, task$server_status, has_error, task$task_dir, wk, req$REMOTE_ADDR,
+      task$task_name, userid, task$..server_packed, task$..server_status, has_error, task$task_dir, wk, req$REMOTE_ADDR,
       !dir.exists(task$task_dir), as.numeric(Sys.time())
     )
 

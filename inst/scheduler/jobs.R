@@ -17,7 +17,7 @@ safe_run <- function(expr, res, debug = FALSE){
 #* Create new jobs with shared data directory
 #* @serializer json
 #* @post /new
-function(req) {
+function(req, res) {
   if(debug){ assign('req', req, envir = globalenv())}
   safe_run({
     restbench <- asNamespace('restbench')
@@ -36,7 +36,7 @@ function(req) {
 
 #* @serializer json
 #* @post /list
-function(req){
+function(req, res){
   if(debug){ assign('req', req, envir = globalenv())}
 
   safe_run({

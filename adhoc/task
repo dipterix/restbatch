@@ -1,43 +1,6 @@
-get_task_root <- function(){
-  task_path <- getOption("restbench.task_root", default = restbench_getopt('task_root'))
-  if(length(task_path) != 1 || is.na(task_path)){
-    task_path <- "~/rave_data/cache_dir/restbench"
-  }
-  if(!dir.exists(task_path)){
-    dir.create(task_path, showWarnings = FALSE, recursive = TRUE, mode = "0777")
-  }
-  normalizePath(task_path)
-}
-get_task_path <- function(task_name, asis = FALSE){
-  task_name <- clean_db_entry(
-    task_name, "[^A-Za-z0-9-_]",
-    msg = sprintf("[1] Invalid task name [%s]. Can only contains letters, digits, and `-`, `_`", task_name))
-  uid <- get_user()
-  if(!startsWith(task_name, paste0(uid, '__'))){
-    task_name <- sprintf("%s__%s", uid, task_name)
-  }
-
-  task_root <- get_task_root()
-  task_dir <- file.path(task_root, task_name)
-  if(!asis && dir.exists(task_dir)){
-    task_name <- sprintf("%s__%s", task_name, rand_string(16))
-    task_dir <- file.path(task_root, task_name)
-  }
-  attr(task_dir, 'task_name') <- task_name
-  attr(task_dir, 'task_root') <- task_root
-  task_dir
-}
-
-
 
 new_task_internal <- function(task_root, task_dir, task_name, reg){
   # c("init", "running", "finish", "canceled")
-  STATUS_CODE <- list(
-    '0' = "init",
-    '1' = 'running',
-    '2' = 'finish',
-    '-1' = 'canceled'
-  )
   suppressMessages({
 
     ..env <- environment()
@@ -184,7 +147,7 @@ new_task_internal <- function(task_root, task_dir, task_name, reg){
       res
     }
 
-    get_server_status <- function(path = 'jobs/status'){
+    server_status <- function(path = 'jobs/status'){
       status <- list(
         status = 'unknown',
         error = NA,
@@ -235,7 +198,7 @@ new_task_internal <- function(task_root, task_dir, task_name, reg){
       # db_get_task(userid = get_user(), client = FALSE, status = 'all')
 
       tryCatch({
-        status <- get_server_status()
+        status <- server_status()
 
         # still running
         if(isTRUE(status$status %in% c('running', 'init'))){
@@ -324,8 +287,8 @@ new_task_internal <- function(task_root, task_dir, task_name, reg){
       collected = FALSE,
       submitted = FALSE,
       submitted_to = server_info,
-      server_status = 0,
-      server_packed = FALSE,
+      ..server_status = 0,
+      ..server_packed = FALSE,
 
       # methods
       status = status,
@@ -414,8 +377,8 @@ restore_task <- function(task_name, userid, .client = TRUE, .update_db = TRUE){
         }
       } else {
         # load from server
-        task$server_status <- entry$status
-        task$server_packed <- (entry$packed > 0)
+        task$..server_status <- entry$status
+        task$..server_packed <- (entry$packed > 0)
       }
     }
     task

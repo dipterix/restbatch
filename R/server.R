@@ -23,7 +23,7 @@ watch_tasks <- function(){
       # 2. resolved?
 
       remove_task <- FALSE
-      server_status <- 1L
+      ..server_status <- 1L
 
       if(future::resolved(item$future)){
         tryCatch({
@@ -33,26 +33,26 @@ watch_tasks <- function(){
           cat("Error message: ", e$message,'\n')
           cat("Removing the task from the queue, set status as 'init'...",'\n')
           remove_task <<- TRUE
-          server_status <<- -1L
+          ..server_status <<- -1L
         })
       }
       if(!remove_task){
         try({
-          batch_status <- item$task$status()
+          batch_status <- item$task$local_status()
 
           # if the task is finished
           if(isTRUE(batch_status$running == 0 && (batch_status$done + batch_status$error >= item$task$njobs))){
             # task is resolved, ready for client to get results
             cat("Task ", item$task$task_name, " finished, updating server database\n")
             remove_task <- TRUE
-            server_status <- 2L
+            ..server_status <- 2L
           }
         })
       }
 
       if(remove_task){
         tryCatch({
-          item$task$server_status <- server_status
+          item$task$..server_status <- ..server_status
           db_update_task_server2(task = item$task, userid = item$userid)
           .subset2(.globals$running, 'remove')(nm)
         }, error = function(e){
@@ -334,29 +334,41 @@ findPort <- function (port, mustWork = NA) {
 
 
 #' @export
-server_alive <- function(port, host = '127.0.0.1', protocol = 'http', path = "validate/ping", ...){
+server_alive <- function(port = 7033, host = '127.0.0.1', protocol = 'http', path = "validate/ping", ...){
 
   # check if the session is active
-  task <- new_task(function(x){}, x = 1, task_name = "test_connection")
-  task$host <- host
-  task$port <- port
-  task$protocol <- protocol
-  task$path_validate <- path
+  valid <- FALSE
+  tryCatch({
+    res <- request_server(
+      sprintf('%s://%s:%d/%s', protocol, host, port, path),
+      body = NULL, method = 'POST', encode = 'json'
+    )
 
-  # host = '127.0.0.1'; port = 7033; protocol = 'http'
-  alive <- task$validate()
+    uid <- get_user()
+    req_token <- res$request$headers['restbench.tokens']
+    token <- httr::content(res)[['token']][[1]]
+    keys <- private_key(uid)
+    for(key in keys){
+      valid <- validate_string(uid, token, req_token)
+      if(valid){
+        break
+      }
+    }
+    attr(valid, "response") <- res
+  }, error = function(e){
+    attr(valid, "error") <- e
+  })
 
-  on.exit({
-    try({
-      task$remove()
-    })
-  }, add = TRUE, after = TRUE)
+  valid
 
-  alive
 }
 
-server_kill <- function(host = '127.0.0.1', port, protocol = 'http'){
-
+#' @export
+server_kill <- function(host = '127.0.0.1', port = 7033, protocol = 'http', path = 'validate/shutdown'){
+  res <- request_server(sprintf('%s://%s:%d/%s', protocol, host, port, path))
+  ret <- httr::content(res)
+  attr(ret, 'response') <- res
+  ret
 }
 
 

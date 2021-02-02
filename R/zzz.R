@@ -18,3 +18,28 @@
   .globals$sql_conn <- NULL
   assign('.globals', .globals, envir = pkg)
 }
+
+#' @export
+print.restbench.result <- function(x, ...){
+  task <- attr(x, 'task')
+  cat(sprintf("Results from task [%s]\n", task$task_name))
+  print(task$local_status())
+  cat("Display details:\n\n")
+  attributes(x) <- NULL
+  print(x)
+}
+
+
+#' @export
+queue_task <- function(task, userid){
+  .globals <- get('.globals')
+  .globals$tasks$add(list(task = task, userid = userid))
+
+  # Watch task
+  if(.globals$watchers == 0){
+    watch_tasks()
+  }
+
+}
+
+

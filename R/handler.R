@@ -19,7 +19,7 @@ run_task <- function(task, userid){
 
   # run!
   cat("Scheduling task: ", task$task_name, '\n')
-  task$server_status <- 1L
+  task$..server_status <- 1L
   db_update_task_server2(task = task, userid = userid)
 
   task$reload_registry(TRUE)
@@ -118,8 +118,8 @@ handler_unpack_task <- function(req){
     batchtools::saveRegistry(reg = reg)
   })
   task <- new_task_internal(root, path, task_name, reg)
-  task$server_packed <- packed
-  task$status()
+  task$..server_packed <- packed
+  # task$local_status()
 
   # register to the database
   db_update_task_server(task, req)
