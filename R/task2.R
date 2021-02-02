@@ -262,9 +262,9 @@ new_task_internal <- function(task_root, task_dir, task_name, reg){
   }
   task <- dipsaus::list_to_fastmap2(list(
     # url path
-    protocol = "http",
-    host = '127.0.0.1',
-    port = 7033,
+    protocol = default_protocol(),
+    host = default_host(),
+    port = default_port(),
     path_validate = "validate/ping",
     path_submit = "jobs/new",
     path_status = 'jobs/status',
@@ -463,7 +463,7 @@ restore_task2 <- function(task_name){
 
 #' @export
 print.restbench.task.client <- function(x, ...){
-  cat("Task (client proxy, restbench package)\n")
+  cat("Task (client proxy from the `restbench` package)\n")
   cat(sprintf("Task name : [%s]\n", x$task_name))
   cat(sprintf("Total jobs: %d\n", x$njobs))
   if(x$submitted){

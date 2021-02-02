@@ -43,7 +43,7 @@ db_init_tables <- function(conn){
     error = FALSE,
     path = "",
     serverip = "",
-    serverport = 7033,
+    serverport = 0,
     removed = TRUE,
     time_added = 0.01
   ))

@@ -28,18 +28,24 @@ request_server <- function(
   }else{
     f <- httr::GET
   }
-  res <- f(
-    url = url,
-    config = do.call(httr::add_headers, conf),
-    encode = encode,
-    body = body
-  )
+  tryCatch({
+    res <- f(
+      url = url,
+      config = do.call(httr::add_headers, conf),
+      encode = encode,
+      body = body
+    )
+  }, error = function(e){
+    e$message <- sprintf("%s\n  Please make sure the server is on.\n", e$message)
+    stop(e)
+  })
   res
 
 }
 
 #' @export
-request_task_list <- function(host, port, task_status = 'valid', protocol = 'http', path = 'jobs/list'){
+request_task_list <- function(task_status = 'valid', host = default_host(),
+                              port = default_port(), protocol = default_protocol(), path = 'jobs/list'){
   url <- sprintf('%s://%s:%d/%s', protocol, host, port, path)
   res <- request_server(url, body = list(status = task_status), method = 'POST')
   content <- httr::content(res)

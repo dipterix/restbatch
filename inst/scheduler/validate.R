@@ -48,7 +48,7 @@ function(req) {
         httpuv::stopAllServers()
       })
     }, delay = 3)
-    return(list(message = "Shutting down..."))
+    return(list(message = "Shutting down the server in 3 seconds..."))
 
   }
 

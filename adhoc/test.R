@@ -7,7 +7,7 @@ conf$options$require_auth = T
 yaml::write_yaml(conf, f)
 restbench:::db_backup(T)
 
-devtools::load_all();restbench:::db_backup(T);p = restbench::start_server(port = 7033)
+devtools::load_all();restbench:::db_backup(T);p = restbench::ensure_server(port = 7033)
 
 
 
@@ -45,7 +45,7 @@ res <- task$submit(pack = F); httr::content(res)
 # restbench:::db_backup(T)
 # restbench:::db_get_task(userid = restbench:::get_user(), client = FALSE, status = 'all')
 restbench::list_tasks(status = 'all')
-restbench::request_task_list('localhost', port = 7033)
+restbench::request_task_list()
 # task$..view()
 
 task$collect()
@@ -61,7 +61,7 @@ httr::content(res)
 
 task$server_status()
 
-restbench::request_task_list('localhost', port = 7033)
+restbench::request_task_list()
 task <- restbench:::restore_task('64d5010ac8f40ebd109b31817f2ccb04__noname__eODgK1F4aToedcFG')
 task$resolved()
 task$local_status()
@@ -69,6 +69,6 @@ task$local_status()
 task$..view()
 task$collect()
 
-restbench::server_kill(port = 7033)
+restbench::server_kill()
 
 

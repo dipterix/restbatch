@@ -7,6 +7,7 @@ modules:
 options:
   debug: yes
   require_auth: no
+  protocol: http
   modules_require_auth: 'jobs, validate'
   anonymous_request: no
   max_concurrent_tasks: 1

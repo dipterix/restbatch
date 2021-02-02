@@ -197,10 +197,13 @@ load_server_settings <- function(settings){
 }
 
 start_server_internal <- function(
-  host = '127.0.0.1',
-  port = 7033,
+  host = default_host(),
+  port = default_port(),
   settings = system.file("debug_settings.yaml", package = 'restbench')
 ){
+
+  default_host(host)
+  default_port(port)
 
   settings <- normalizePath(settings, mustWork = TRUE)
   load_server_settings(settings)
@@ -294,7 +297,7 @@ start_server_internal <- function(
 portAvailable <- function(port){
   tryCatch({
     srv <- httpuv::startServer(
-      host = "127.0.0.1",
+      host = default_host(),
       port, list(), quiet = TRUE)
   }, error = function(e) {
     port <<- 0
@@ -334,7 +337,7 @@ findPort <- function (port, mustWork = NA) {
 
 
 #' @export
-server_alive <- function(port = 7033, host = '127.0.0.1', protocol = 'http', path = "validate/ping", ...){
+server_alive <- function(port = default_port(), host = default_host(), protocol = default_protocol(), path = "validate/ping", ...){
 
   # check if the session is active
   valid <- FALSE
@@ -364,7 +367,7 @@ server_alive <- function(port = 7033, host = '127.0.0.1', protocol = 'http', pat
 }
 
 #' @export
-server_kill <- function(host = '127.0.0.1', port = 7033, protocol = 'http', path = 'validate/shutdown'){
+server_kill <- function(host = default_host(), port = default_port(), protocol = default_protocol(), path = 'validate/shutdown'){
   res <- request_server(sprintf('%s://%s:%d/%s', protocol, host, port, path))
   ret <- httr::content(res)
   attr(ret, 'response') <- res
@@ -376,10 +379,10 @@ server_kill <- function(host = '127.0.0.1', port = 7033, protocol = 'http', path
 
 #' @export
 start_server <- function(
-  host = '127.0.0.1',
-  port = 7033,
+  host = default_host(),
+  port = default_port(),
   settings = system.file("default_settings.yaml", package = 'restbench'),
-  protocol = 'http',
+  protocol = default_protocol(),
   path_validate = "validate/ping",
   make_default = TRUE,
   ...
@@ -401,7 +404,7 @@ start_server <- function(
   alive <- FALSE
   if(!portAvailable(port)){
     # host = '127.0.0.1'; port = 7033; protocol = 'http'
-    alive <- server_alive(host, port, protocol, path_validate)
+    alive <- server_alive(port = port, host = host, protocol = protocol, path = path_validate)
     if(!alive){
       stop("Port: ", port, " is occupied or invalid.")
     }
@@ -468,32 +471,43 @@ start_server <- function(
     .globals$servers[[host]][[port]] <- item
   }
 
-  if(make_default){
-    options("restbench.default_server" = item)
-  }
-
   message(sprintf("A restbench server started at %s://%s:%s", protocol, host, port))
+
+  if(make_default){
+    default_host(host)
+    default_port(port)
+    default_protocol(protocol)
+    # options("restbench.default_server" = item)
+    message("You have chosen this server to be the default server.")
+  }
 
   .globals$servers[[host]][[port]]
 }
 
 #' @export
-ensure_server <- function(host, port, ...){
-  item <- getOption("restbench.default_server", list())
-  if(missing(host)){
-    host <- item$host
+ensure_server <- function(host = default_host(), port = default_port(),
+                          protocol = default_protocol(), make_default = TRUE,
+                          validate = TRUE, validate_sleep = 0.5, validate_maxwait = 30, ...){
+  if(!server_alive(port = port, host = host, protocol = protocol, ...)){
+    start_server(host, port, protocol = protocol, make_default = FALSE, ...)
+
+    if(validate){
+      timeout <- Sys.time() + validate_maxwait
+      while(!server_alive(port = port, host = host, protocol = protocol, ...)){
+        if(timeout < Sys.time()){
+          stop("Cannot create server at ", host, ":", port, "\nPlease manually start server using `restbench::start_server` function.")
+        }
+        Sys.sleep(validate_sleep)
+      }
+    }
+
   }
-  if(missing(port)){
-    port <- item$port
+
+  if(make_default){
+    default_host(host)
+    default_port(port)
+    default_protocol(protocol)
   }
-  if(is.null(host)){
-    host <- '127.0.0.1'
-  }
-  if(!isTRUE(is.integer(port))){
-    port <- 7033
-  }
-  if(!server_alive(host, port, ...)){
-    start_server(host, port, ...)
-  }
+
   invisible()
 }

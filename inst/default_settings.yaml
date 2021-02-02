@@ -6,6 +6,7 @@ modules:
   validate: '{system.file("scheduler/validate.R", package = "restbench")}'
 options:
   debug: no
+  protocol: http
   require_auth: yes
   modules_require_auth: 'jobs, validate'
   anonymous_request: no
