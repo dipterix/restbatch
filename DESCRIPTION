@@ -24,6 +24,7 @@ Imports:
     openssl,
     DBI,
     glue,
+    later,
     RSQLite,
     stringr,
     fastmap (>= 1.1.0)

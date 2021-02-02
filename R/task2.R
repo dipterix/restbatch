@@ -169,12 +169,11 @@ task__resolved <- function(task){
   }, error = function(e){
 
     # Server is not running
-    message("Server is shutdown or the task is canceled. Using local cache...")
     s <- task$local_status()
     if(s$done + s$error >= task$njobs && s$running == 0){
       return(TRUE)
     } else {
-      stop("Failed to get tasks status from the server. \n\nAdditional message: ", e)
+      stop("\nFailed to get tasks status from the server.\nServer is shutdown or the task is canceled.\n\nAdditional message: \n", e)
     }
 
   })
@@ -360,17 +359,16 @@ restore_task <- function(task_name, userid, .client = TRUE, .update_db = TRUE){
       if(.client){
         task$host <- entry$serverip
         task$port <- entry$serverport
-        if(entry$submitted){
+        if(entry$submitted || entry$collected){
           task$submitted_to$host <- entry$serverip
           task$submitted_to$port <- entry$serverport
           task$submitted <- TRUE
         }
-        if(entry$collected){
-          task$submitted <- TRUE
-          task$collect()
-          task$results <- batchtools::reduceResultsList(reg = task$reg)
-          task$collected <- TRUE
-        }
+        # if(entry$collected){
+        #   task$collect()
+        #   task$results <- batchtools::reduceResultsList(reg = task$reg)
+        #   task$collected <- TRUE
+        # }
       } else {
         # load from server
         task$..server_status <- entry$status
@@ -387,11 +385,7 @@ restore_task <- function(task_name, userid, .client = TRUE, .update_db = TRUE){
 
 }
 
-#' @export
-new_task2 <- function(fun, ..., task_name = "Noname") {
-  stopifnot(is.function(fun))
-  task <- new_task(fun = fun, ..., task_name = task_name, .temporary = FALSE)
-
+make_client_task_proxy <- function(task){
   ret <- new.env(parent = emptyenv())
 
   ret$reload_registry <- function(){
@@ -452,7 +446,19 @@ new_task2 <- function(fun, ..., task_name = "Noname") {
 
   lockEnvironment(ret)
   ret
+}
 
+#' @export
+new_task2 <- function(fun, ..., task_name = "Noname") {
+  stopifnot(is.function(fun))
+  task <- new_task(fun = fun, ..., task_name = task_name, .temporary = FALSE)
+  make_client_task_proxy(task)
+}
+
+#' @export
+restore_task2 <- function(task_name){
+  task <- restore_task(task_name = task_name, userid = get_user(), .client = TRUE, .update_db = TRUE)
+  make_client_task_proxy(task)
 }
 
 #' @export
@@ -467,9 +473,9 @@ print.restbench.task.client <- function(x, ...){
     print(s)
 
     if(x$collected){
-      cat("\n*The task result has been collected.")
+      cat("\n*The task result has been collected.\n")
       cat("Use `task$collect()` or `task$results` to get the results\n")
-    } else if (s$running + s$error >= x$njobs){
+    } else if (s$done + s$error >= x$njobs && s$running == 0){
       cat("\n*The task is finished, but the result has not been collected yet.\n")
       cat("Use `task$collect()` to collect the results.\n")
     } else {
