@@ -31,6 +31,13 @@ get_task_path <- function(task_name, asis = FALSE){
 
 
 new_task_internal <- function(task_root, task_dir, task_name, reg){
+  # c("init", "running", "finish", "canceled")
+  STATUS_CODE <- list(
+    '0' = "init",
+    '1' = 'running',
+    '2' = 'finish',
+    '-1' = 'canceled'
+  )
   suppressMessages({
 
     ..env <- environment()
@@ -93,7 +100,12 @@ new_task_internal <- function(task_root, task_dir, task_name, reg){
 
       valid
     }
-    submit <- function(pack = FALSE){
+    submit <- function(pack = FALSE, force = FALSE){
+
+      if(task$submitted && !force){
+        stop("Task has been submitted. To re-submit to the server, use `force=TRUE`")
+      }
+
       pack <- isTRUE(pack)
       conf <- prepare_request()
 
@@ -133,7 +145,7 @@ new_task_internal <- function(task_root, task_dir, task_name, reg){
 
           content <- httr::content(res)
           # Submitted!
-          task$submited <- TRUE
+          task$submitted <- TRUE
 
           server_info$host <- task$host
           server_info$port <- task$port
@@ -171,28 +183,97 @@ new_task_internal <- function(task_root, task_dir, task_name, reg){
 
       res
     }
+
+    get_server_status <- function(path = 'jobs/status'){
+      status <- list(
+        status = 'unknown',
+        error = NA,
+        timestamp = NA,
+        message = "Server cannot find the task."
+      )
+
+      if(!task$submitted){
+        warning("Task has not been submitted to the server. Please run task$submit() first.")
+        return(status)
+      }
+      url <- sprintf("%s://%s:%d/%s", task$protocol, task$submitted_to$host, task$submitted_to$port, path)
+      res <- request_server(url, body = list(task_name = task$task_name))
+
+      if(res$status_code == 200){
+        content <- httr::content(res)
+        if(length(content)){
+          content <- content[[1]]
+          if(isTRUE(content$name == task$task_name)){
+            status$status <- STATUS_CODE[[sprintf("%.0f", content$status)]]
+            if(length(status$status)){
+              status$error <- isTRUE(content$error > 0)
+              status$timestamp <- as.POSIXct(content$time_added, origin="1970-01-01")
+            } else {
+              status$status <- NA
+              status$message <- "Invalid server response"
+            }
+          }
+        }
+      } else {
+        status$message <- httr::content(res, as = 'text', encoding = 'UTF-8')
+      }
+
+      status
+    }
+
     resolved <- function(){
       if(task$collected){
         return(TRUE)
       }
-      # load jobs
-      s <- status()
-      if(s$submitted < task$njobs){
-        return(FALSE)
+
+      # check server status
+      if(!task$submitted){
+        stop("Task has not been submitted to the server. Please run task$submit() first.")
       }
-      if(s$done + s$error >= task$njobs && s$running == 0){
-        return(TRUE)
-      }else {
-        return(FALSE)
-      }
+
+      # check task status
+      # db_get_task(userid = get_user(), client = FALSE, status = 'all')
+
+      tryCatch({
+        status <- get_server_status()
+
+        # still running
+        if(isTRUE(status$status %in% c('running', 'init'))){
+          return(FALSE)
+        }
+
+        if(isTRUE(status$status %in% "finish")){
+          return(TRUE)
+        }
+
+        if(isTRUE(status$status %in% "canceled")){
+          stop("Job has been canceled by the server.")
+        }
+
+      }, error = function(e){
+
+        # Server is not running
+        message("Either server is shutdown or the task is canceled.")
+        s <- status()
+        if(s$done + s$error >= task$njobs && s$running == 0){
+          return(TRUE)
+        } else {
+          stop("Failed to get tasks status from the server. \n\nAdditional message: ", e)
+        }
+
+      })
+
     }
     collect <- function(){
       if(task$collected){
         return(task$results)
       }
       ensure_registry()
+      await <- 0.5
       while(!resolved()){
-        Sys.sleep(0.5)
+        Sys.sleep(await)
+        await <- await * 1.01
+        if(await > 10){ await <- 10 }
       }
       res <- batchtools::reduceResultsList(reg = task$reg)
       task$results <- res
@@ -241,8 +322,8 @@ new_task_internal <- function(task_root, task_dir, task_name, reg){
       njobs = nrow(reg$status),
       results = NULL,
       collected = FALSE,
-      submited = FALSE,
-      submited_to = server_info,
+      submitted = FALSE,
+      submitted_to = server_info,
       server_status = 0,
       server_packed = FALSE,
 
@@ -323,10 +404,10 @@ restore_task <- function(task_name, userid, .client = TRUE, .update_db = TRUE){
       if(.client){
         task$host <- entry$serverip
         task$port <- entry$serverport
-        if(entry$submited){
-          task$submited_to$host <- entry$serverip
-          task$submited_to$port <- entry$serverport
-          entry$submited <- TRUE
+        if(entry$submitted){
+          task$submitted_to$host <- entry$serverip
+          task$submitted_to$port <- entry$serverport
+          task$submitted <- TRUE
         }
         if(entry$collected){
           task$collect()

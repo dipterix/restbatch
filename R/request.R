@@ -39,7 +39,7 @@ request_server <- function(
 }
 
 #' @export
-request_task_query <- function(host, port, task_status = 'valid', protocol = 'http', path = 'jobs/query'){
+request_task_list <- function(host, port, task_status = 'valid', protocol = 'http', path = 'jobs/list'){
   url <- sprintf('%s://%s:%d/%s', protocol, host, port, path)
   res <- request_server(url, body = list(status = task_status), method = 'POST')
   content <- httr::content(res)
@@ -49,11 +49,12 @@ request_task_query <- function(host, port, task_status = 'valid', protocol = 'ht
   }))
 
   res <- data.frame(
-    name = content$name,
-    status = as.character(factor(content$status, levels = c(0,1,2), labels = c("init", "running", "finish"))),
+    name = as.character(content$name),
+    status = as.character(factor(content$status, levels = c(0,1,2,-1), labels = c("init", "running", "finish", "canceled"))),
     error = as.logical(content$error),
     packed = as.logical(content$packed),
-    time_added = as.POSIXct(content$time_added, origin="1970-01-01")
+    time_added = as.POSIXct(content$time_added, origin="1970-01-01"),
+    stringsAsFactors = FALSE
   )
   attr(res, 'userid') <- get_user()
   res

@@ -46,8 +46,8 @@ res <- task$submit(pack = F); res
 # restbench:::db_backup(T)
 # restbench:::db_get_task(userid = restbench:::get_user(), client = FALSE, status = 'all')
 restbench::list_tasks(status = 'all')
-restbench::request_task_query('localhost', port = 7033)
-task$..view()
+restbench::request_task_list('localhost', port = 7033)
+# task$..view()
 
 task$collect()
 
@@ -60,12 +60,17 @@ task$submit()
 
 task$remove()
 
-request_server('http://127.0.0.1:7033/validate/shutdown')
+res <- request_server('http://127.0.0.1:7033/jobs/status', body = list(task_name = '64d5010ac8f40ebd109b31817f2ccb04__noname__4fOMLrmlYCzdosaO'))
+httr::content(res)
 
-restbench::request_task_query('localhost', port = 7033)
-task <- restbench::restore_task('64d5010ac8f40ebd109b31817f2ccb04__noname__6g4wgWZwJqURvr1k')
+restbench::request_task_list('localhost', port = 7033)
+task <- restbench::restore_task('64d5010ac8f40ebd109b31817f2ccb04__noname__1t2rNaoLOMbXmeyy')
+task$resolved()
 task$status()
+
 task$..view()
 task$collect()
 
 request_server('http://127.0.0.1:7033/validate/shutdown')
+
+

@@ -38,7 +38,7 @@ db_init_tables <- function(conn){
   DBI::dbCreateTable(conn, "restbenchtasksclient", data.frame(
     name = "",
     userid = "",
-    submited = TRUE,
+    submitted = TRUE,
     collected = TRUE,
     error = FALSE,
     path = "",
@@ -340,7 +340,7 @@ db_getuser <- function(userid, unique = FALSE){
   existing_user
 }
 
-db_get_task <- function(task_name, userid, client = TRUE, status = c("running", "init", "finish", "valid", "all")){
+db_get_task <- function(task_name, userid, client = TRUE, status = c("running", "init", "finish", "canceled", "valid", "all")){
 
   if(missing(userid) && client){
     userid <- get_user()
@@ -366,13 +366,16 @@ db_get_task <- function(task_name, userid, client = TRUE, status = c("running", 
     qry <- switch (
       status,
       'init' = {
-        'AND submited=0 AND removed=0'
+        'AND submitted=0 AND removed=0'
       },
       'running' = {
-        'AND submited=1 AND collected=0 AND removed=0'
+        'AND submitted=1 AND collected=0 AND removed=0'
       },
       'finish' = {
-        'AND submited=1 AND collected=1 AND removed=0'
+        'AND submitted=1 AND collected=1 AND removed=0'
+      },
+      "canceled" = {
+        stop("Only server can get tasks that canceled.")
       },
       'valid' = {
         'AND removed=0'
@@ -410,6 +413,9 @@ db_get_task <- function(task_name, userid, client = TRUE, status = c("running", 
       'finish' = {
         'AND status=2 AND removed=0'
       },
+      'canceled' = {
+        'AND status="-1" AND removed=0'
+      },
       'valid' = {
         'AND removed=0'
       }, {
@@ -442,7 +448,7 @@ db_update_task_client <- function(task){
   # DBI::dbWriteTable(conn, "restbenchtasksclient", data.frame(
   #   name = "",
   #   userid = "",
-  #   submited = TRUE,
+  #   submitted = TRUE,
   #   collected = TRUE,
   #   error = FALSE,
   #   path = "",
@@ -471,8 +477,8 @@ db_update_task_client <- function(task){
   if(nrow(existing)){
     # update
     res <- DBI::dbSendQuery(conn, sprintf(
-      'UPDATE restbenchtasksclient SET submited="%d", collected="%d", error="%d", path="%s", serverip="%s", serverport="%d", removed="%d" WHERE userid="%s" AND name="%s";',
-      task$submited, task$collected, has_error, task$task_dir, task$host, task$port,
+      'UPDATE restbenchtasksclient SET submitted="%d", collected="%d", error="%d", path="%s", serverip="%s", serverport="%d", removed="%d" WHERE userid="%s" AND name="%s";',
+      task$submitted, task$collected, has_error, task$task_dir, task$host, task$port,
       !dir.exists(task$task_dir), userid, task$task_name
     ))
 
@@ -480,8 +486,8 @@ db_update_task_client <- function(task){
     # insert
     # dput(names(as.data.frame(dplyr::tbl(conn, 'restbenchtasksclient'))))
     res <- DBI::dbSendQuery(conn, sprintf(
-      'INSERT INTO restbenchtasksclient ("name", "userid", "submited", "collected", "error", "path", "serverip", "serverport", "removed", "time_added") VALUES ("%s", "%s", "%d", "%d", "%d", "%s", "%s", "%d", "%d", "%.3f");',
-      task$task_name, userid, task$submited, task$collected, has_error, task$task_dir, task$host, task$port,
+      'INSERT INTO restbenchtasksclient ("name", "userid", "submitted", "collected", "error", "path", "serverip", "serverport", "removed", "time_added") VALUES ("%s", "%s", "%d", "%d", "%d", "%s", "%s", "%d", "%d", "%.3f");',
+      task$task_name, userid, task$submitted, task$collected, has_error, task$task_dir, task$host, task$port,
       !dir.exists(task$task_dir), as.numeric(Sys.time())
     ))
   }

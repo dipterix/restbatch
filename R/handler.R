@@ -180,7 +180,6 @@ handler_validate_auth <- function(req, res) {
 
   if(!length(body)){
     res$status <- 401 # Unauthorized
-    browser()
     return(list(error="Invalid request header"))
   }
 

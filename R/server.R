@@ -19,7 +19,7 @@ watch_tasks <- function(){
 
     if(is.list(item)){
       # check
-      # 1. submited, no error
+      # 1. submitted, no error
       # 2. resolved?
 
       remove_task <- FALSE
@@ -33,12 +33,15 @@ watch_tasks <- function(){
           cat("Error message: ", e$message,'\n')
           cat("Removing the task from the queue, set status as 'init'...",'\n')
           remove_task <<- TRUE
-          server_status <<- 0L
+          server_status <<- -1L
         })
       }
       if(!remove_task){
         try({
-          if(item$task$resolved()){
+          batch_status <- item$task$status()
+
+          # if the task is finished
+          if(isTRUE(batch_status$running == 0 && (batch_status$done + batch_status$error >= item$task$njobs))){
             # task is resolved, ready for client to get results
             cat("Task ", item$task$task_name, " finished, updating server database\n")
             remove_task <- TRUE
@@ -216,9 +219,45 @@ start_server_internal <- function(
   })
 
   on.exit({
-    cat("Cleaning up...")
+    cat("Cleaning up...\n")
+
+    cat("Shutdown pool\n")
     future::plan(future::sequential)
-    cat("Done")
+
+    # Update the database
+    cat("De-register unfinished tasks\n")
+
+    ready_tasks <- .subset2(.globals$tasks, 'as_list')()
+    running_tasks <- .subset2(.globals$running, 'as_list')()
+
+    dereg_tasks <- c(ready_tasks, running_tasks)
+
+    if(length(dereg_tasks)){
+      # There are running jobs, stop them (set their status to "canceled")
+      conn <- db_ensure(close = FALSE)
+
+      for(item in dereg_tasks){
+        if(is.list(item) && length(item$userid) ==1 && is.character(item$userid)){
+          # No need to clean as it was cleaned when adding to the list
+          # userid <- clean_db_entry(item$userid)
+
+          tryCatch({
+            DBI::dbExecute(conn, sprintf(
+              'UPDATE restbenchtasksserver SET status="-1" WHERE userid="%s" AND name="%s";',
+              item$userid, item$task$task_name
+            ))
+          }, error = function(e){})
+
+        }
+      }
+
+      DBI::dbDisconnect(conn)
+
+    }
+
+
+
+    cat("Done\n\n\n")
   })
 
   plumber::pr_run(local({
@@ -368,6 +407,7 @@ start_server <- function(
     # check existing ports
     dir_create2(server_dir)
     # fs <- as.integer(list.dirs(server_root, recursive = FALSE, full.names = FALSE))
+
     # create new server
     if(get_os() == 'windows'){
       system2(
