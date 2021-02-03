@@ -340,7 +340,8 @@ db_getuser <- function(userid, unique = FALSE){
   existing_user
 }
 
-db_get_task <- function(task_name, userid, client = TRUE, status = c("running", "init", "finish", "canceled", "valid", "all")){
+db_get_task <- function(task_name, userid, client = TRUE, status = c("running", "init", "finish", "canceled", "valid", "all"),
+                        order = FALSE, expire = 0){
 
   if(missing(userid) && client){
     userid <- get_user()
@@ -359,7 +360,14 @@ db_get_task <- function(task_name, userid, client = TRUE, status = c("running", 
     DBI::dbDisconnect(conn)
   })
 
-
+  expire <- as.integer(expire)
+  additional_qrystr <- ''
+  if(isTRUE(expire > 0)){
+    additional_qrystr <- sprintf(' AND time_added>"%.0f"', as.numeric(Sys.time()) - expire)
+  }
+  if(order){
+    additional_qrystr <- paste(additional_qrystr, "ORDER BY time_added DESC")
+  }
 
   # get from client
   if(client){
@@ -383,6 +391,7 @@ db_get_task <- function(task_name, userid, client = TRUE, status = c("running", 
         ""
       }
     )
+    qry <- paste(qry, additional_qrystr)
 
     if(missing(task_name)){
       res <- DBI::dbSendQuery(conn, sprintf(
@@ -422,6 +431,7 @@ db_get_task <- function(task_name, userid, client = TRUE, status = c("running", 
         ""
       }
     )
+    qry <- paste(qry, additional_qrystr)
 
     if(missing(task_name)){
       res <- DBI::dbSendQuery(conn, sprintf(
@@ -579,10 +589,10 @@ db_update_task_server <- function(task, req){
 }
 
 #' @export
-list_tasks <- function(status = c("valid", "running", "init", "finish", "all")){
+list_tasks <- function(status = c("valid", "running", "init", "finish", "all"), order = FALSE, expire = 0){
   status <- match.arg(status)
   userid <- get_user()
-  db_get_task(userid = userid, status = status, client = TRUE)
+  db_get_task(userid = userid, status = status, client = TRUE, order = order, expire = expire)
 }
 
 # Number of running tasks on the local server (server dev-use only)

@@ -445,18 +445,31 @@ start_server <- function(
       # settings = system.file("default_settings.yaml", package = 'restbench')
       # protocol = 'http'
 
-      f <- tempfile()
-      on.exit({
-        unlink(f)
-      }, add = TRUE)
+      f <- file.path(server_dir, "restbench.start.R")
+      infile <- file.path(server_dir, "infile")
+      writeLines('', infile)
+      # on.exit({ unlink(f) }, add = TRUE)
 
-      cmd <- sprintf('nohup "%s" --no-save --no-restore -e "restbench:::start_server_internal(host=\'%s\',port=%s,settings=\'%s\')" > "%s" 2> "%s" & disown', R.home('Rscript'), host, port, settings,
-                     normalizePath(file.path(server_dir, 'stdout.log'), mustWork = FALSE),
-                     normalizePath(file.path(server_dir, 'stderr.log'), mustWork = FALSE))
+      # cmd <- sprintf('nohup "%s" --no-save --no-restore -e "restbench:::start_server_internal(host=\'%s\',port=%s,settings=\'%s\')" > "%s" 2> "%s" & disown', R.home('Rscript'), host, port, settings,
+      #                normalizePath(file.path(server_dir, 'stdout.log'), mustWork = FALSE),
+      #                normalizePath(file.path(server_dir, 'stderr.log'), mustWork = FALSE))
+      #
+      # writeLines(cmd, f)
 
+      cmd <- sprintf('restbench:::start_server_internal(host=\'%s\',port=%s,settings=\'%s\')', host, port, settings)
       writeLines(cmd, f)
 
-      system2(command = Sys.which("bash"), sprintf('"%s"', normalizePath(f)), wait = TRUE)
+      cmd <- sprintf('nohup "%s" CMD BATCH --no-save --no-restore "%s" "%s" &',
+                     R.home('R'), normalizePath(f), normalizePath(file.path(server_dir, 'server.log'), mustWork = FALSE))
+
+      system(cmd, intern = FALSE, ignore.stdout = TRUE, ignore.stderr = TRUE, wait = FALSE, input = normalizePath(infile))
+      # system2(command = "nohup", args = c(
+      #   R.home('R'),
+      #   'CMD', 'BATCH', "--no-save", "--no-restore",
+      #   sprintf('"%s"', normalizePath(f)),
+      #   sprintf('"%s"', normalizePath(file.path(server_dir, 'server.log'), mustWork = FALSE)),
+      #   "& disown"
+      # ), wait = FALSE)
     }
 
     item$native <- TRUE
@@ -488,7 +501,9 @@ start_server <- function(
 ensure_server <- function(host = default_host(), port = default_port(),
                           protocol = default_protocol(), make_default = TRUE,
                           validate = TRUE, validate_sleep = 0.5, validate_maxwait = 30, ...){
+  newly_started <- FALSE
   if(!server_alive(port = port, host = host, protocol = protocol, ...)){
+    newly_started <- TRUE
     start_server(host, port, protocol = protocol, make_default = FALSE, ...)
 
     if(validate){
@@ -509,5 +524,5 @@ ensure_server <- function(host = default_host(), port = default_port(),
     default_protocol(protocol)
   }
 
-  invisible()
+  invisible(newly_started)
 }

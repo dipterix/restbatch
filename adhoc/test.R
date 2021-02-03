@@ -24,12 +24,9 @@ devtools::load_all();restbench:::db_backup(T);p = restbench::ensure_server(port 
 # restbench:::server_alive(port = 7034)
 
 task <- restbench:::new_task2(function(x){
-  if(x == 2){
-    stop()
-  }
   Sys.sleep(1)
   Sys.getpid()
-}, x = 1:10); task
+}, x = 1:10, task_name = "Test"); task
 # task$reload_registry(TRUE)
 # task$reg$cluster.functions <- batchtools::makeClusterFunctionsSocket(1)
 # batchtools::submitJobs(reg = task$reg)
