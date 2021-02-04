@@ -120,3 +120,5 @@ validate_string <- function(userid, sig, data){
   data <- charToRaw(data)
   validate_raw(userid, sig, data)
 }
+
+

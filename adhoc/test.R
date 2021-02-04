@@ -7,7 +7,7 @@ conf$options$require_auth = T
 yaml::write_yaml(conf, f)
 restbench:::db_backup(T)
 
-devtools::load_all();restbench:::db_backup(T);p = restbench::ensure_server(port = 7033)
+devtools::load_all();restbench:::db_backup(T);p = restbench::ensure_server(host = "10.0.0.132", port = 7033)
 
 
 
@@ -16,12 +16,15 @@ devtools::load_all();restbench:::db_backup(T);p = restbench::ensure_server(port 
 #   writeLines("restbench:::start_server_internal(port = 7034, settings = '~/Desktop/junk/settings.yaml')", ff)
 #   ff
 # }))
-# devtools::load_all();restbench:::db_backup(T);restbench:::start_server_internal(port = 7034, settings = '~/Desktop/junk/settings.yaml')
+# devtools::load_all();restbench:::db_backup(T);
+restbench:::start_server_internal(host = "10.0.0.132", port = 7034, settings = '~/Desktop/junk/settings.yaml')
 
 # p = restbench::start_server(port = 7033)
 
 # restbench:::portAvailable(7034)
 # restbench:::server_alive(port = 7034)
+
+default_host('10.0.0.217')
 
 task <- restbench:::new_task2(function(x){
   Sys.sleep(1)

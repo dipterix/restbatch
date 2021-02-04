@@ -29,34 +29,32 @@ watch_tasks <- function(){
       if(future::resolved(item$future)){
         tryCatch({
           future::value(item$future)
+
+          if(isTRUE(item$task$..server_packed) && isTRUE(item$packing)){
+            # package finished
+            cat("Task ", item$task$task_name, " packed! Updating the database.\n")
+            remove_task <- TRUE
+            ..server_status <- 2L
+          } else if(!isTRUE(item$task$..server_packed)) {
+            cat("Task ", item$task$task_name, " finished, updating server database\n")
+            remove_task <- TRUE
+            ..server_status <- 2L
+          } else {
+            # finished, but need to pack
+            cat("Task ", item$task$task_name, " finished, packing the result folder.\n")
+            item$packing <- TRUE
+            item$future <- future::future({
+              item$task$zip(target = paste0(item$task$task_dir, '.zip'))
+            })
+            remove_task <- FALSE
+          }
+
         }, error = function(e){
-          cat("Error while submitting task:", item$task$task_name,'\n')
+          cat("Error while submitting/packing the task:", item$task$task_name,'\n')
           cat("Error message: ", e$message,'\n')
           cat("Removing the task from the queue, set status as 'init'...",'\n')
           remove_task <<- TRUE
           ..server_status <<- -1L
-        })
-      }
-      if(!remove_task){
-        try({
-          # if the task is finished
-          if(item$task$locally_resolved()){
-            # task is resolved, ready for client to get results
-            if(isTRUE(item$task$..server_packed)){
-              # create a zip file in the background
-
-              cat("Task ", item$task$task_name, " finished, packing result folder.\n")
-              item$packing <- TRUE
-              item$future <- future::future({
-                item$task$zip(target = paste0(item$task$task_dir, '.zip'))
-              })
-              remove_task <- FALSE
-            } else {
-              cat("Task ", item$task$task_name, " finished, updating server database\n")
-              remove_task <- TRUE
-              ..server_status <- 2L
-            }
-          }
         })
       }
 

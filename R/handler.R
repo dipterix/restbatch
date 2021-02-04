@@ -88,16 +88,15 @@ handler_unpack_task <- function(req){
     f <- tempfile(fileext = ".zip")
     writeBin(req$body$datapak$value, f)
 
-    task_dir <- get_task_path(task_name, asis = TRUE)
-    if(dir.exists(task_dir)){
-      # This is bad, just ignore the datapak because a task with the same name exists
-      # If debug, replace the files
-      if(debug){
-        message("Task path exists, overwrite in debug mode...")
-        unlink(task_dir, recursive = TRUE)
-        utils::unzip(normalizePath(f), exdir = get_task_root())
-      }
+    task_dir <- get_task_path(task_name, asis = TRUE, userid = userid)
+    task_root <- get_task_root()
+    files <- utils::unzip(f, list = TRUE)
+    files <- files$Name[startsWith(files$Name, userid)]
+    if(dir.exists(task_dir) && length(files)){
+      message(sprintf("Task path for [%s] exists, overwrite...", task_name))
+      unlink(task_dir, recursive = TRUE, force = TRUE)
     }
+    utils::unzip(f, files = files, overwrite = TRUE, exdir = task_root)
 
     # multipart <- mime::parse_multipart(req)
     # assign('multipart', multipart, envir = globalenv())
@@ -108,7 +107,7 @@ handler_unpack_task <- function(req){
 
   # restore task
   task_name = req_header$restbench.task_name
-  path <- get_task_path(task_name, asis = TRUE)
+  path <- get_task_path(task_name, asis = TRUE, userid = userid)
   suppressMessages({
     reg <- batchtools::loadRegistry(path, work.dir = root,
                                     make.default = FALSE, writeable = TRUE)

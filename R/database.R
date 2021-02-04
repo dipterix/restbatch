@@ -222,6 +222,7 @@ db_unlock <- function(conn){
 }
 
 db_adduser <- function(userid, private_key, username = NULL, overwrite = FALSE, force = FALSE){
+
   userid <- stringr::str_trim(userid)
 
   if(!isTRUE(userid != '' && stringr::str_detect(userid, "^[a-zA-Z0-9]+$"))){

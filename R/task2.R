@@ -137,6 +137,11 @@ task__resolved <- function(task){
     return(TRUE)
   }
 
+  # local file shows resolved, no need to download
+  if(task$locally_resolved()){
+    return(TRUE)
+  }
+
   # check server status
   if(!task$submitted){
     stop("Task has not been submitted to the server. Please run task$submit() first.")
@@ -154,14 +159,26 @@ task__resolved <- function(task){
     }
 
     if(isTRUE(status$status %in% "finish")){
-      # TODO: Download the task from server, so file another request
 
-      s <- task$local_status()
-      if(s$done + s$error >= task$njobs && s$running == 0){
+      # check again because it could be finished during the queries
+      packed <- FALSE
+      if(!task$locally_resolved()){
+        packed <- TRUE
+        task$download()
+      }
+
+      if(task$locally_resolved()) {
         return(TRUE)
       } else {
+        if(packed){
+          # Most likely to be an error because server marked as finished, but wrapped an unfinished task
+          # could happen if task is re-submitted, but server then should mark it as init or running
+          stop("Task downloaded from the server is unfinished. The task files is at\n", task$task_dir, ".zip\n\nPlease report this issue to `https://github.com/dipterix/restbench/issues`.")
+        }
         return(FALSE)
       }
+
+
     }
 
     if(isTRUE(status$status %in% "canceled")){
