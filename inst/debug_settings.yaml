@@ -13,6 +13,7 @@ options:
   max_concurrent_tasks: 1
   max_concurrent_jobs: 4
   task_queue_interval: 1
+  max_release_tasks_per_second: 10
   request_timeout: .inf
   task_root: '{restbench::restbench_getopt("task_root")}'
   max_nodetime: 864000

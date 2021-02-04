@@ -37,7 +37,7 @@ task <- restbench:::new_task2(function(x){
 # task$port <- 7034
 
 # res <- task$validate(); res
-res <- task$submit(pack = F); httr::content(res)
+res <- task$submit(pack = T, force = T); httr::content(res)
 
 # restbench:::db_backup(T)
 # restbench:::db_get_task(userid = restbench:::get_user(), client = FALSE, status = 'all')

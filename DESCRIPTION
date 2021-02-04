@@ -27,4 +27,5 @@ Imports:
     later,
     RSQLite,
     stringr,
+    snow,
     fastmap (>= 1.1.0)

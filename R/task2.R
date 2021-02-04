@@ -154,6 +154,8 @@ task__resolved <- function(task){
     }
 
     if(isTRUE(status$status %in% "finish")){
+      # TODO: Download the task from server, so file another request
+
       s <- task$local_status()
       if(s$done + s$error >= task$njobs && s$running == 0){
         return(TRUE)
@@ -232,9 +234,9 @@ task__remove <- function(task, wait = 0.01){
     batchtools::removeRegistry(wait = wait, reg = task$reg)
   })
 }
-task__zip <- function(task){
+task__zip <- function(task, target = tempfile(fileext = '.zip')){
   # zip the directory
-  f <- normalizePath(tempfile(fileext = '.zip'), mustWork = FALSE)
+  f <- target
   if(file.exists(f)){ unlink(f) }
   wd <- getwd()
   on.exit({
@@ -242,7 +244,31 @@ task__zip <- function(task){
   }, add = TRUE, after = TRUE)
   setwd(task$task_root)
   utils::zip(f, task$task_name)
-  f
+  normalizePath(f)
+}
+task__download <- function(task, target, force = FALSE){
+
+  # check if the task is finished locally
+  if(!force && task$locally_resolved()){
+    return(FALSE)
+  }
+
+  url <- sprintf('%s://%s:%d/%s', task$protocol, task$host, task$port, task$path_download)
+  res <- request_server(url, list(task_name=task$task_name, force=force))
+  if(res$status_code == 418){
+    err <- httr::content(res)
+    stop(simpleError(err$error[[1]], call = NULL))
+  } else if(res$status_code == 200 && res$headers$`content-type` == 'application/zip'){
+    f <- tempfile(fileext = '.zip')
+    writeBin(httr::content(res), f)
+    files <- utils::unzip(f, list = TRUE)
+    files <- files$Name[startsWith(files$Name, task$task_name)]
+    utils::unzip(f, exdir = task$task_root, files = files, overwrite = TRUE)
+    unlink(f)
+    return(TRUE)
+  } else {
+    stop("Unknwon status code from the server.")
+  }
 }
 task__reload_registry <- function(task, writeable = FALSE){
   # TODO: check if the task has been submitted, if so, raise error when
@@ -251,6 +277,15 @@ task__reload_registry <- function(task, writeable = FALSE){
     task$reg <- batchtools::loadRegistry(task$task_dir, work.dir = task$task_root,
                                          make.default = FALSE, writeable = writeable)
   })
+}
+
+task__locally_resolved <- function(task){
+  s <- task$local_status()
+  if(s$running == 0 && s$done + s$error >= task$njobs){
+    return(TRUE)
+  } else {
+    return(FALSE)
+  }
 }
 
 new_task_internal <- function(task_root, task_dir, task_name, reg){
@@ -268,6 +303,7 @@ new_task_internal <- function(task_root, task_dir, task_name, reg){
     path_validate = "validate/ping",
     path_submit = "jobs/new",
     path_status = 'jobs/status',
+    path_download = 'jobs/download',
 
     # fields
     reg = reg,
@@ -293,6 +329,9 @@ new_task_internal <- function(task_root, task_dir, task_name, reg){
     remove = function(wait = 0.01){ task__remove(task, wait = wait) },
     reload_registry = function(writeable = FALSE){ task__reload_registry(task, writeable = writeable) },
     collect = function(){ task__collect(task) },
+    locally_resolved = function(){ task__locally_resolved(task) },
+    zip = function(target = tempfile(fileext = '.zip')){ task__zip(task, target) },
+    download = function(target){ task__download(task, target, force = FALSE) },
 
     # debug
     ..view = function(){

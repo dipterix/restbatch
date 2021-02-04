@@ -4,6 +4,7 @@
 watch_tasks <- function(){
 
   debug <- getOption('restbench.debug', FALSE)
+  release_speed <- as.numeric(getOption('restbench.max_release_tasks_per_second', 10.0))
 
   if(.globals$paused){
     if(debug){
@@ -17,7 +18,7 @@ watch_tasks <- function(){
   for(nm in task_names){
     item <- .globals$running[[nm]]
 
-    if(is.list(item)){
+    if(is.list(item) && !is.null(item$task)){
       # check
       # 1. submitted, no error
       # 2. resolved?
@@ -38,14 +39,23 @@ watch_tasks <- function(){
       }
       if(!remove_task){
         try({
-          batch_status <- item$task$local_status()
-
           # if the task is finished
-          if(isTRUE(batch_status$running == 0 && (batch_status$done + batch_status$error >= item$task$njobs))){
+          if(item$task$locally_resolved()){
             # task is resolved, ready for client to get results
-            cat("Task ", item$task$task_name, " finished, updating server database\n")
-            remove_task <- TRUE
-            ..server_status <- 2L
+            if(isTRUE(item$task$..server_packed)){
+              # create a zip file in the background
+
+              cat("Task ", item$task$task_name, " finished, packing result folder.\n")
+              item$packing <- TRUE
+              item$future <- future::future({
+                item$task$zip(target = paste0(item$task$task_dir, '.zip'))
+              })
+              remove_task <- FALSE
+            } else {
+              cat("Task ", item$task$task_name, " finished, updating server database\n")
+              remove_task <- TRUE
+              ..server_status <- 2L
+            }
           }
         })
       }
@@ -60,7 +70,10 @@ watch_tasks <- function(){
           .subset2(.globals$running, 'remove')(nm)
         })
         Sys.sleep(0.1)
-        break
+        release_speed <- release_speed - 1
+        if(release_speed <= 0){
+          break
+        }
       }
 
     }
@@ -445,9 +458,19 @@ start_server <- function(
       # settings = system.file("default_settings.yaml", package = 'restbench')
       # protocol = 'http'
 
-      f <- file.path(server_dir, "restbench.start.R")
-      infile <- file.path(server_dir, "infile")
-      writeLines('', infile)
+      start_script <- file.path(server_dir, "restbench.start.sh")
+      file.copy(system.file('bin/start_server.sh', package = 'restbench'), start_script, overwrite = TRUE)
+      Sys.chmod(start_script, mode = "0777", use_umask = FALSE)
+      system2( start_script, c(
+        settings, port, host, protocol, R.home('R')
+      ), stdout = FALSE, stderr = FALSE, wait = FALSE)
+      # writeLines(sprintf('tempdir(check = TRUE)\nrestbench:::start_server_internal(host=\'%s\',port=%s,settings=\'%s\')',
+      #                    host, port, settings), start_script)
+      #
+      # infile <- file.path(server_dir, "restbench.start.sh")
+      # writeLines('', infile)
+
+
       # on.exit({ unlink(f) }, add = TRUE)
 
       # cmd <- sprintf('nohup "%s" --no-save --no-restore -e "restbench:::start_server_internal(host=\'%s\',port=%s,settings=\'%s\')" > "%s" 2> "%s" & disown', R.home('Rscript'), host, port, settings,
@@ -456,20 +479,6 @@ start_server <- function(
       #
       # writeLines(cmd, f)
 
-      cmd <- sprintf('restbench:::start_server_internal(host=\'%s\',port=%s,settings=\'%s\')', host, port, settings)
-      writeLines(cmd, f)
-
-      cmd <- sprintf('nohup "%s" CMD BATCH --no-save --no-restore "%s" "%s" &',
-                     R.home('R'), normalizePath(f), normalizePath(file.path(server_dir, 'server.log'), mustWork = FALSE))
-
-      system(cmd, intern = FALSE, ignore.stdout = TRUE, ignore.stderr = TRUE, wait = FALSE, input = normalizePath(infile))
-      # system2(command = "nohup", args = c(
-      #   R.home('R'),
-      #   'CMD', 'BATCH', "--no-save", "--no-restore",
-      #   sprintf('"%s"', normalizePath(f)),
-      #   sprintf('"%s"', normalizePath(file.path(server_dir, 'server.log'), mustWork = FALSE)),
-      #   "& disown"
-      # ), wait = FALSE)
     }
 
     item$native <- TRUE
@@ -494,7 +503,7 @@ start_server <- function(
     message("You have chosen this server to be the default server.")
   }
 
-  .globals$servers[[host]][[port]]
+  invisible(.globals$servers[[host]][[port]])
 }
 
 #' @export

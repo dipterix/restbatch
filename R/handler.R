@@ -49,11 +49,11 @@ run_task <- function(task, userid){
     cat("Sent: ", task$task_name, '\n')
   })
 
-  .globals$running[[task$task_name]] <- list(
+  .globals$running[[task$task_name]] <- dipsaus::list_to_fastmap2(list(
     task = task,
     userid = userid,
     future = f
-  )
+  ))
 
 
 }

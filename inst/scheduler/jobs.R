@@ -81,4 +81,34 @@ function(req, res){
   }, res = res, debug = debug)
 }
 
+#* @serializer contentType list(type="application/zip")
+#* @post /download
+function(req, res){
+  if(debug){ assign('req', req, envir = globalenv())}
+
+  safe_run({
+    ns <- asNamespace('restbench')
+
+    userid <- ns$clean_db_entry(req$HEADERS[["restbench.userid"]], msg = '[1] Invalid user ID')
+    task_name <- ns$clean_db_entry(req$body$task_name, disallow = '[^a-zA-Z0-9-_]', msg = '[5] Invalid task name')
+    task <- ns$restore_task(task_name = task_name, userid = userid, .client = FALSE, .update_db = TRUE)
+
+    if(!task$..server_packed){
+      stop("Task was not packed when you sent them.")
+    }
+    if(!task$locally_resolved()){
+      stop("Task has not been resolved.")
+    }
+    if(task$..server_status != 2L){
+      stop("Packing the result still in progress.")
+    }
+    # zipped <- ns$task__zip(task)
+    zipped <- paste0(task$task_dir, '.zip')
+    if(!file.exists(zipped)){
+      stop("Cannot find the result file.")
+    }
+    readBin(zipped, "raw", n=file.info(zipped)$size)
+  }, res = res, debug = debug)
+}
+
 
