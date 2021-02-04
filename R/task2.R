@@ -497,6 +497,10 @@ make_client_task_proxy <- function(task){
     return(NULL)
   })
 
+  makeActiveBinding("readable_name", function(){
+    stringr::str_remove_all(task$task_name, "(^[a-zA-Z0-9]{32}__)|(__[a-zA-Z0-9]{16})")
+  }, ret)
+
   class(ret) <- "restbatch.task.client"
 
 
