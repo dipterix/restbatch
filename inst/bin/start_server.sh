@@ -32,7 +32,7 @@ then
 fi
 
 temp_file=$(dirname "$0")
-echo "restbench:::start_server_internal(host='$host',port=$port,settings='$settings')" > "$temp_file/start_server.R"
+echo "restbatch:::start_server_internal(host='$host',port=$port,settings='$settings')" > "$temp_file/start_server.R"
 
 #
 nohup "$rhome" CMD BATCH --no-save --no-restore "$temp_file/start_server.R" "$temp_file/server.log" & disown -a

@@ -23,7 +23,7 @@ task__submit <- function(task, pack = FALSE, force = FALSE){
   conf$task_name <- task$task_name
   conf$standalone <- pack
   conf <- as.list(conf)
-  names(conf) <- sprintf("restbench.%s", names(conf))
+  names(conf) <- sprintf("restbatch.%s", names(conf))
 
   if(pack) {
     encode <- 'multipart'
@@ -173,7 +173,7 @@ task__resolved <- function(task){
         if(packed){
           # Most likely to be an error because server marked as finished, but wrapped an unfinished task
           # could happen if task is re-submitted, but server then should mark it as init or running
-          stop("Task downloaded from the server is unfinished. The task files is at\n", task$task_dir, ".zip\n\nPlease report this issue to `https://github.com/dipterix/restbench/issues`.")
+          stop("Task downloaded from the server is unfinished. The task files is at\n", task$task_dir, ".zip\n\nPlease report this issue to `https://github.com/dipterix/restbatch/issues`.")
         }
         return(FALSE)
       }
@@ -227,7 +227,7 @@ task__collect <- function(task){
     error_table = error_table,
     batch_table = tbl,
     task = task,
-    class = c("restbench.result", "list")
+    class = c("restbatch.result", "list")
   )
 
   # batchtools::getErrorMessages(reg = task$reg)
@@ -315,7 +315,7 @@ new_task_internal <- function(task_root, task_dir, task_name, reg){
   task <- dipsaus::list_to_fastmap2(list(
     # url path
     protocol = default_protocol(),
-    host = default_host(),
+    host = default_host(allow0 = FALSE),
     port = default_port(),
     path_validate = "validate/ping",
     path_submit = "jobs/new",
@@ -356,7 +356,7 @@ new_task_internal <- function(task_root, task_dir, task_name, reg){
     }
   ))
 
-  class(task) <- c("restbench.task", "fastmap2", "list")
+  class(task) <- c("restbatch.task", "fastmap2", "list")
   task
 
 }
@@ -497,7 +497,7 @@ make_client_task_proxy <- function(task){
     return(NULL)
   })
 
-  class(ret) <- "restbench.task.client"
+  class(ret) <- "restbatch.task.client"
 
 
   lockEnvironment(ret)
@@ -518,8 +518,8 @@ restore_task2 <- function(task_name){
 }
 
 #' @export
-print.restbench.task.client <- function(x, ...){
-  cat("Task (client proxy from the `restbench` package)\n")
+print.restbatch.task.client <- function(x, ...){
+  cat("Task (client proxy from the `restbatch` package)\n")
   cat(sprintf("Task name : [%s]\n", x$task_name))
   cat(sprintf("Total jobs: %d\n", x$njobs))
   if(x$submitted){

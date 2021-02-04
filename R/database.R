@@ -21,21 +21,21 @@ clean_db_entry <- function(entry, disallow = "[^a-zA-Z0-9]",
 
 db_init_tables <- function(conn){
 
-  DBI::dbWriteTable(conn, "restbenchlocker", data.frame(
+  DBI::dbWriteTable(conn, "restbatchlocker", data.frame(
     locked = FALSE,
     timeStamp = as.numeric(Sys.time()),
     lockedBy = ""
   ))
 
-  DBI::dbWriteTable(conn, "restbenchuser", data.frame(
+  DBI::dbWriteTable(conn, "restbatchuser", data.frame(
     userid = get_user(),
     username = get_username(),
-    private_key = readLines(system.file('default_key', package = 'restbench'), n = 1),
-    public_key = readLines(system.file('default_pubkey', package = 'restbench'), n = 1),
+    private_key = readLines(system.file('default_key', package = 'restbatch'), n = 1),
+    public_key = readLines(system.file('default_pubkey', package = 'restbatch'), n = 1),
     date_added = as.numeric(Sys.time())
   ))
 
-  DBI::dbCreateTable(conn, "restbenchtasksclient", data.frame(
+  DBI::dbCreateTable(conn, "restbatchtasksclient", data.frame(
     name = "",
     userid = "",
     submitted = TRUE,
@@ -48,7 +48,7 @@ db_init_tables <- function(conn){
     time_added = 0.01
   ))
 
-  DBI::dbCreateTable(conn, "restbenchtasksserver", data.frame(
+  DBI::dbCreateTable(conn, "restbatchtasksserver", data.frame(
     name = "",
     userid = "",
     status = TRUE, # 0: inited, 1: running, 2: completed/error
@@ -63,18 +63,18 @@ db_init_tables <- function(conn){
 }
 
 db_backup <- function(drop=FALSE){
-  dbdir <- file.path(R_user_dir('restbench', which = "data"), 'DB')
+  dbdir <- file.path(R_user_dir('restbatch', which = "data"), 'DB')
   dir_create2(dbdir)
 
-  db_file <- file.path(dbdir, "restbench.sqlite")
+  db_file <- file.path(dbdir, "restbatch.sqlite")
   if(file.exists(db_file)){
     # copy
-    tdir <- file.path(R_user_dir('restbench', which = "data"), strftime(Sys.time(), 'DB.old.%Y%m%d%H%M%S'))
+    tdir <- file.path(R_user_dir('restbatch', which = "data"), strftime(Sys.time(), 'DB.old.%Y%m%d%H%M%S'))
     dir_create2(tdir)
     file.copy(dbdir, tdir, overwrite = TRUE, recursive = TRUE, copy.mode = TRUE, copy.date = TRUE)
 
     if(drop){
-      tmpf <- file.path(dbdir, strftime(Sys.time(), "restbench.old.%Y%m%d%H%M%S.sqlite"))
+      tmpf <- file.path(dbdir, strftime(Sys.time(), "restbatch.old.%Y%m%d%H%M%S.sqlite"))
       file.rename(db_file, tmpf)
       unlink(tmpf, force = TRUE)
     }
@@ -90,8 +90,8 @@ db_lock <- function(conn, lock_duration = 0.2, wait = Inf){
 
   conn_name <- dn_conn_ptr(conn)
 
-  if(!"restbenchlocker" %in% tbl){
-    DBI::dbWriteTable(conn, "restbenchlocker", data.frame(
+  if(!"restbatchlocker" %in% tbl){
+    DBI::dbWriteTable(conn, "restbatchlocker", data.frame(
       locked = TRUE,
       timeStamp = Sys.time() + lock_duration,
       lockedBy = conn_name
@@ -100,10 +100,10 @@ db_lock <- function(conn, lock_duration = 0.2, wait = Inf){
   } else {
     now <- as.numeric(Sys.time())
 
-    # db <- dplyr::tbl(conn, "restbenchlocker")
+    # db <- dplyr::tbl(conn, "restbatchlocker")
     # Replace locker if
     res <- DBI::dbSendQuery(conn, sprintf(
-      'UPDATE restbenchlocker SET locked=1 , timeStamp=%.3f , lockedBy="%s" WHERE locked=0 OR lockedBy="%s" OR timeStamp<%.3f;',
+      'UPDATE restbatchlocker SET locked=1 , timeStamp=%.3f , lockedBy="%s" WHERE locked=0 OR lockedBy="%s" OR timeStamp<%.3f;',
       now + lock_duration, conn_name, conn_name, now
     ))
     info <- DBI::dbGetInfo(res)
@@ -120,7 +120,7 @@ db_lock <- function(conn, lock_duration = 0.2, wait = Inf){
         break
       }
       res <- DBI::dbSendQuery(conn, sprintf(
-        'UPDATE restbenchlocker SET locked=1 , timeStamp=%.3f , lockedBy="%s" WHERE locked=0 OR lockedBy="%s" OR timeStamp<%.3f;',
+        'UPDATE restbatchlocker SET locked=1 , timeStamp=%.3f , lockedBy="%s" WHERE locked=0 OR lockedBy="%s" OR timeStamp<%.3f;',
         as.numeric(Sys.time()) + lock_duration, conn_name, conn_name, as.numeric(Sys.time())
       ))
       info <- DBI::dbGetInfo(res)
@@ -139,10 +139,10 @@ db_lock <- function(conn, lock_duration = 0.2, wait = Inf){
 }
 
 db_ensure <- function(close = FALSE){
-  dbdir <- file.path(R_user_dir('restbench', which = "data"), 'DB')
+  dbdir <- file.path(R_user_dir('restbatch', which = "data"), 'DB')
   dir_create2(dbdir)
 
-  db_file <- file.path(dbdir, "restbench.sqlite")
+  db_file <- file.path(dbdir, "restbatch.sqlite")
 
   has_file <- file.exists(db_file)
 
@@ -164,10 +164,10 @@ db_ensure <- function(close = FALSE){
 
   reinit <- FALSE
 
-  if(!all(c(c("restbenchtasksclient", "restbenchtasksserver", "restbenchuser", "restbenchlocker")) %in% tbl)){
+  if(!all(c(c("restbatchtasksclient", "restbatchtasksserver", "restbatchuser", "restbatchlocker")) %in% tbl)){
     # wrong db file
     if(has_file){
-      if("restbenchlocker" %in% tbl){
+      if("restbatchlocker" %in% tbl){
         db_lock(conn, 10)
       }
       DBI::dbDisconnect(conn)
@@ -195,7 +195,7 @@ db_locked <- function(conn){
   now <- as.numeric(Sys.time())
 
   res <- DBI::dbSendQuery(conn, sprintf(
-    'SELECT count(*) AS count FROM restbenchlocker WHERE locked=0 OR lockedBy="%s" OR timeStamp<%.3f;',
+    'SELECT count(*) AS count FROM restbatchlocker WHERE locked=0 OR lockedBy="%s" OR timeStamp<%.3f;',
     conn_name, now
   ))
   info <- DBI::dbFetch(res)
@@ -213,7 +213,7 @@ db_unlock <- function(conn){
     now <- as.numeric(Sys.time())
     conn_name <- dn_conn_ptr(conn)
     res <- DBI::dbSendQuery(conn, sprintf(
-      'UPDATE restbenchlocker SET locked=0 WHERE locked=1 OR lockedBy="%s" OR timeStamp<%.3f;',
+      'UPDATE restbatchlocker SET locked=0 WHERE locked=1 OR lockedBy="%s" OR timeStamp<%.3f;',
       conn_name, now
     ))
     DBI::dbClearResult(res)
@@ -239,7 +239,7 @@ db_adduser <- function(userid, private_key, username = NULL, overwrite = FALSE, 
 
   # get existing user
   res <- DBI::dbSendQuery(conn, sprintf(
-    'SELECT * FROM restbenchuser WHERE userid="%s";',
+    'SELECT * FROM restbatchuser WHERE userid="%s";',
     userid
   ))
   existing_user <- DBI::dbFetch(res)
@@ -280,7 +280,7 @@ db_adduser <- function(userid, private_key, username = NULL, overwrite = FALSE, 
   if(nrow(existing_user) > 0){
     if(overwrite){
       res <- DBI::dbSendQuery(conn, sprintf(
-        'DELETE FROM restbenchuser WHERE userid="%s";',
+        'DELETE FROM restbatchuser WHERE userid="%s";',
         userid
       ))
       DBI::dbGetInfo(res)
@@ -292,7 +292,7 @@ db_adduser <- function(userid, private_key, username = NULL, overwrite = FALSE, 
       if(username != existing_user$username[[1]]){
 
         res <- DBI::dbSendQuery(conn, sprintf(
-          'UPDATE restbenchuser SET username="%s" WHERE userid="%s";',
+          'UPDATE restbatchuser SET username="%s" WHERE userid="%s";',
           username, userid
         ))
         DBI::dbGetInfo(res)
@@ -305,7 +305,7 @@ db_adduser <- function(userid, private_key, username = NULL, overwrite = FALSE, 
 
   # Add user
   res <- DBI::dbSendQuery(conn, sprintf(
-    'INSERT INTO restbenchuser (userid, username, private_key, public_key, date_added) VALUES ("%s", "%s", "%s", "%s", %.0f);',
+    'INSERT INTO restbatchuser (userid, username, private_key, public_key, date_added) VALUES ("%s", "%s", "%s", "%s", %.0f);',
     userid, username, private_key, pubkey, as.numeric(Sys.time())
   ))
   info <- DBI::dbGetInfo(res)
@@ -327,12 +327,12 @@ db_getuser <- function(userid, unique = FALSE){
 
   if(unique){
     res <- DBI::dbSendQuery(conn, sprintf(
-      'SELECT DISTINCT userid, username, private_key, public_key FROM restbenchuser WHERE userid="%s";',
+      'SELECT DISTINCT userid, username, private_key, public_key FROM restbatchuser WHERE userid="%s";',
       userid
     ))
   } else {
     res <- DBI::dbSendQuery(conn, sprintf(
-      'SELECT * FROM restbenchuser WHERE userid="%s";',
+      'SELECT * FROM restbatchuser WHERE userid="%s";',
       userid
     ))
   }
@@ -396,13 +396,13 @@ db_get_task <- function(task_name, userid, client = TRUE, status = c("running", 
 
     if(missing(task_name)){
       res <- DBI::dbSendQuery(conn, sprintf(
-        'SELECT * FROM restbenchtasksclient WHERE userid="%s" %s;',
+        'SELECT * FROM restbatchtasksclient WHERE userid="%s" %s;',
         userid, qry
       ))
     } else {
 
       res <- DBI::dbSendQuery(conn, sprintf(
-        'SELECT * FROM restbenchtasksclient WHERE userid="%s" AND name="%s" %s;',
+        'SELECT * FROM restbatchtasksclient WHERE userid="%s" AND name="%s" %s;',
         userid, task_name, qry
       ))
     }
@@ -436,13 +436,13 @@ db_get_task <- function(task_name, userid, client = TRUE, status = c("running", 
 
     if(missing(task_name)){
       res <- DBI::dbSendQuery(conn, sprintf(
-        'SELECT * FROM restbenchtasksserver WHERE userid="%s" %s;',
+        'SELECT * FROM restbatchtasksserver WHERE userid="%s" %s;',
         userid, qry
       ))
     } else {
 
       res <- DBI::dbSendQuery(conn, sprintf(
-        'SELECT * FROM restbenchtasksserver WHERE userid="%s" AND name="%s" %s;',
+        'SELECT * FROM restbatchtasksserver WHERE userid="%s" AND name="%s" %s;',
         userid, task_name, qry
       ))
     }
@@ -456,7 +456,7 @@ db_get_task <- function(task_name, userid, client = TRUE, status = c("running", 
 }
 
 db_update_task_client <- function(task){
-  # DBI::dbWriteTable(conn, "restbenchtasksclient", data.frame(
+  # DBI::dbWriteTable(conn, "restbatchtasksclient", data.frame(
   #   name = "",
   #   userid = "",
   #   submitted = TRUE,
@@ -488,16 +488,16 @@ db_update_task_client <- function(task){
   if(nrow(existing)){
     # update
     res <- DBI::dbSendQuery(conn, sprintf(
-      'UPDATE restbenchtasksclient SET submitted="%d", collected="%d", error="%d", path="%s", serverip="%s", serverport="%d", removed="%d" WHERE userid="%s" AND name="%s";',
+      'UPDATE restbatchtasksclient SET submitted="%d", collected="%d", error="%d", path="%s", serverip="%s", serverport="%d", removed="%d" WHERE userid="%s" AND name="%s";',
       task$submitted, task$collected, has_error, task$task_dir, task$host, task$port,
       !dir.exists(task$task_dir), userid, task$task_name
     ))
 
   } else {
     # insert
-    # dput(names(as.data.frame(dplyr::tbl(conn, 'restbenchtasksclient'))))
+    # dput(names(as.data.frame(dplyr::tbl(conn, 'restbatchtasksclient'))))
     res <- DBI::dbSendQuery(conn, sprintf(
-      'INSERT INTO restbenchtasksclient ("name", "userid", "submitted", "collected", "error", "path", "serverip", "serverport", "removed", "time_added") VALUES ("%s", "%s", "%d", "%d", "%d", "%s", "%s", "%d", "%d", "%.3f");',
+      'INSERT INTO restbatchtasksclient ("name", "userid", "submitted", "collected", "error", "path", "serverip", "serverport", "removed", "time_added") VALUES ("%s", "%s", "%d", "%d", "%d", "%s", "%s", "%d", "%d", "%.3f");',
       task$task_name, userid, task$submitted, task$collected, has_error, task$task_dir, task$host, task$port,
       !dir.exists(task$task_dir), as.numeric(Sys.time())
     ))
@@ -527,7 +527,7 @@ db_update_task_server2 <- function(task, userid){
   })
 
   res <- DBI::dbSendQuery(conn, sprintf(
-    'UPDATE restbenchtasksserver SET status="%d", packed="%d", error="%d", path="%s", removed="%d" WHERE userid="%s" AND name="%s";',
+    'UPDATE restbatchtasksserver SET status="%d", packed="%d", error="%d", path="%s", removed="%d" WHERE userid="%s" AND name="%s";',
     task$..server_status, task$..server_packed, has_error, task$task_dir, !dir.exists(task$task_dir), userid, task$task_name
   ))
 
@@ -539,7 +539,7 @@ db_update_task_server2 <- function(task, userid){
 db_update_task_server <- function(task, req){
 
   req_headers <- as.list(req$HEADERS)
-  userid <- clean_db_entry(entry = req_headers$restbench.userid, strict = FALSE)
+  userid <- clean_db_entry(entry = req_headers$restbatch.userid, strict = FALSE)
 
   # get task
   existing <- db_get_task(task_name = task$task_name, userid = userid, client = FALSE, status = 'all')
@@ -551,7 +551,7 @@ db_update_task_server <- function(task, req){
   })
   wk <- task$reg$max.concurrent.jobs
 
-  wk <- as.integer(getOption('restbench.max_concurrent_jobs'))
+  wk <- as.integer(getOption('restbatch.max_concurrent_jobs'))
   if(!length(wk) || is.na(wk[[1]])){
     wk <- as.integer(task$reg$max.concurrent.jobs)
     if(!length(wk) || is.na(wk[[1]])){
@@ -563,13 +563,13 @@ db_update_task_server <- function(task, req){
   if(nrow(existing)){
     # update
     sql_str <- sprintf(
-      'UPDATE restbenchtasksserver SET status="%d", packed="%d", error="%d", path="%s", removed="%d" WHERE userid="%s" AND name="%s";',
+      'UPDATE restbatchtasksserver SET status="%d", packed="%d", error="%d", path="%s", removed="%d" WHERE userid="%s" AND name="%s";',
       task$..server_status, task$..server_packed, has_error, task$task_dir, !dir.exists(task$task_dir), userid, task$task_name
     )
   } else {
     # insert
     sql_str <- sprintf(
-      'INSERT INTO restbenchtasksserver ("name", "userid", "packed", "status", "error", "path", "ncpu", "clientip", "removed", "time_added") VALUES ("%s", "%s", "%d", "%d", "%d", "%s", "%d", "%s", "%d", "%.3f");',
+      'INSERT INTO restbatchtasksserver ("name", "userid", "packed", "status", "error", "path", "ncpu", "clientip", "removed", "time_added") VALUES ("%s", "%s", "%d", "%d", "%d", "%s", "%d", "%s", "%d", "%.3f");',
       task$task_name, userid, task$..server_packed, task$..server_status, has_error, task$task_dir, wk, req$REMOTE_ADDR,
       !dir.exists(task$task_dir), as.numeric(Sys.time())
     )
@@ -597,19 +597,19 @@ list_tasks <- function(status = c("valid", "running", "init", "finish", "all"), 
 }
 
 # Number of running tasks on the local server (server dev-use only)
-server_summary <- function(include_expired = TRUE){
+summarize_server <- function(include_expired = TRUE){
   if(include_expired){
     extra_cond <- ''
   } else {
-    extra_cond <- sprintf('AND time_added>"%.3f"', as.numeric(Sys.time()) - getOption("restbench.max_nodetime", 60*60*24*10))
+    extra_cond <- sprintf('AND time_added>"%.3f"', as.numeric(Sys.time()) - getOption("restbatch.max_nodetime", 60*60*24*10))
   }
   conn <- db_ensure(close = FALSE)
   on.exit({ DBI::dbDisconnect(conn) })
-  res <- DBI::dbSendQuery(conn, sprintf('SELECT count(*) as count FROM restbenchtasksserver WHERE status=1 %s;', extra_cond))
+  res <- DBI::dbSendQuery(conn, sprintf('SELECT count(*) as count FROM restbatchtasksserver WHERE status=1 %s;', extra_cond))
   running <- DBI::dbFetch(res)
   DBI::dbClearResult(res)
 
-  res <- DBI::dbSendQuery(conn, sprintf('SELECT count(*) as count FROM restbenchtasksserver WHERE status=0 %s;', extra_cond))
+  res <- DBI::dbSendQuery(conn, sprintf('SELECT count(*) as count FROM restbatchtasksserver WHERE status=0 %s;', extra_cond))
   waiting <- DBI::dbFetch(res)
   DBI::dbClearResult(res)
 

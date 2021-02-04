@@ -1,7 +1,7 @@
 get_task_root <- function(){
-  task_path <- getOption("restbench.task_root", default = restbench_getopt('task_root'))
+  task_path <- getOption("restbatch.task_root", default = restbatch_getopt('task_root'))
   if(length(task_path) != 1 || is.na(task_path)){
-    task_path <- "~/rave_data/cache_dir/restbench"
+    task_path <- "~/rave_data/cache_dir/restbatch"
   }
   if(!dir.exists(task_path)){
     dir.create(task_path, showWarnings = FALSE, recursive = TRUE, mode = "0777")

@@ -21,7 +21,7 @@ request_server <- function(
   conf <- prepare_request()
   dipsaus::list_to_fastmap2(header, conf)
   conf <- as.list(conf)
-  names(conf) <- sprintf("restbench.%s", names(conf))
+  names(conf) <- sprintf("restbatch.%s", names(conf))
 
   if(method == 'POST'){
     f <- httr::POST
@@ -36,7 +36,7 @@ request_server <- function(
       body = body
     )
   }, error = function(e){
-    e$message <- sprintf("%s\n  Please make sure the server is on.\n", e$message)
+    e$message <- sprintf("%s\n  Please make sure the server is on and you are using the right protocol.\n", e$message)
     stop(e)
   })
   res
@@ -44,7 +44,7 @@ request_server <- function(
 }
 
 #' @export
-request_task_list <- function(task_status = 'valid', host = default_host(),
+request_task_list <- function(task_status = 'valid', host = default_host(allow0 = FALSE),
                               port = default_port(), protocol = default_protocol(), path = 'jobs/list'){
   url <- sprintf('%s://%s:%d/%s', protocol, host, port, path)
   res <- request_server(url, body = list(status = task_status), method = 'POST')

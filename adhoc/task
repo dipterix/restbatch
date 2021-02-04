@@ -33,7 +33,7 @@ new_task_internal <- function(task_root, task_dir, task_name, reg){
         conf$path <- task_dir
         conf$task_name <- task_name
         conf <- as.list(conf)
-        names(conf) <- sprintf("restbench.%s", names(conf))
+        names(conf) <- sprintf("restbatch.%s", names(conf))
 
         encode <- 'json'
         body <- NULL
@@ -46,7 +46,7 @@ new_task_internal <- function(task_root, task_dir, task_name, reg){
         )
 
         uid <- get_user()
-        req_token <- res$request$headers['restbench.tokens']
+        req_token <- res$request$headers['restbatch.tokens']
         token <- httr::content(res)[['token']][[1]]
         keys <- private_key(uid)
         for(key in keys){
@@ -76,7 +76,7 @@ new_task_internal <- function(task_root, task_dir, task_name, reg){
       conf$task_name <- task_name
       conf$standalone <- pack
       conf <- as.list(conf)
-      names(conf) <- sprintf("restbench.%s", names(conf))
+      names(conf) <- sprintf("restbatch.%s", names(conf))
 
       if(pack) {
         encode <- 'multipart'

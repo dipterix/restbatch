@@ -1,4 +1,4 @@
-Package: restbench
+Package: restbatch
 Type: Package
 Title: A RESTful Framework to Schedule R Batch Jobs
 Version: 0.1.0

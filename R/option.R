@@ -1,6 +1,6 @@
 
 default_settings <- function(s = dipsaus::fastmap2()){
-  s[['task_root']] <- '~/rave_data/cache_dir/restbench'
+  s[['task_root']] <- '~/rave_data/cache_dir/restbatch'
   s[['verbose_level']] <- 'DEBUG'
 
   s[['max_worker']] <- parallel::detectCores() - 1
@@ -39,7 +39,7 @@ load_setting <- function(reset_temp = TRUE){
   s <- get0('.settings', ifnotfound = default_settings())
   tmp <- s$..temp
   sess_str <- get('.session_string')
-  conf_path <- R_user_dir(package = 'restbench', which = 'config')
+  conf_path <- R_user_dir(package = 'restbatch', which = 'config')
   conf_file <- file.path(conf_path, 'settings.yaml')
   if(file.exists(conf_file)){
     load_yaml(conf_file, map = s)
@@ -55,7 +55,7 @@ load_setting <- function(reset_temp = TRUE){
   s
 }
 
-#' Set/Get 'restbench' option
+#' Set/Get 'restbatch' option
 #' @description Persist settings on local configuration file
 #' @param key character, option name
 #' @param value character or logical of length 1, option value
@@ -67,28 +67,28 @@ load_setting <- function(reset_temp = TRUE){
 #' @param temp when saving, whether the key-value pair should be considered
 #' temporary, a temporary settings will be ignored when saving; when getting
 #' options, setting \code{temp} to false will reveal the actual settings.
-#' @return \code{restbench_setopt} returns modified \code{value};
-#' \code{restbench_resetopt} returns current settings as a list;
-#' \code{restbench_confpath} returns absolute path for the settings file;
-#' \code{restbench_getopt} returns the settings value to the given key, or
+#' @return \code{restbatch_setopt} returns modified \code{value};
+#' \code{restbatch_resetopt} returns current settings as a list;
+#' \code{restbatch_confpath} returns absolute path for the settings file;
+#' \code{restbatch_getopt} returns the settings value to the given key, or
 #' \code{default} if not found.
 #' @seealso \code{R_user_dir}
-#' @details \code{restbench_setopt} stores key-value pair in local path.
+#' @details \code{restbatch_setopt} stores key-value pair in local path.
 #' The values are persistent and shared across multiple sessions.
 #' There are some read-only keys such as \code{"session_string"}. Trying to
 #' set those keys will result in error.
 #'
-#' \code{restbench_getopt} returns value corresponding to the keys. If key is
+#' \code{restbatch_getopt} returns value corresponding to the keys. If key is
 #' missing, the whole option will be returned.
 #'
-#' If set \code{all=TRUE}, \code{restbench_resetopt} resets all keys including
+#' If set \code{all=TRUE}, \code{restbatch_resetopt} resets all keys including
 #' non-standard ones. However \code{"session_string"} will never reset.
-#' @name restbench-option
+#' @name restbatch-option
 NULL
 
-#' @rdname restbench-option
+#' @rdname restbatch-option
 #' @export
-restbench_setopt <- function(key, value, .save = TRUE){
+restbatch_setopt <- function(key, value, .save = TRUE){
 
   stopifnot2(isTRUE(
     mode(value) %in% c('numeric', 'logical', 'character')
@@ -101,7 +101,7 @@ restbench_setopt <- function(key, value, .save = TRUE){
   stopifnot2(!key %in% c('session_string'),
              msg = sprintf('Key %s is read-only', sQuote(key)))
 
-  conf_path <- R_user_dir(package = 'restbench', which = 'config')
+  conf_path <- R_user_dir(package = 'restbatch', which = 'config')
   conf_file <- file.path(conf_path, 'settings.yaml')
   s <- load_setting(reset_temp = FALSE)
 
@@ -126,9 +126,9 @@ restbench_setopt <- function(key, value, .save = TRUE){
   invisible(value)
 }
 
-#' @rdname restbench-option
+#' @rdname restbatch-option
 #' @export
-restbench_resetopt <- function(all = FALSE){
+restbatch_resetopt <- function(all = FALSE){
   s <- get('.settings')
   if(all){
     nms <- names(s)
@@ -139,7 +139,7 @@ restbench_resetopt <- function(all = FALSE){
   validate_settings(s)
 
   # remove some temporary settings
-  conf_path <- R_user_dir(package = 'restbench', which = 'config')
+  conf_path <- R_user_dir(package = 'restbatch', which = 'config')
   conf_file <- file.path(conf_path, 'settings.yaml')
 
   if(all && file.exists(conf_file)){
@@ -155,9 +155,9 @@ restbench_resetopt <- function(all = FALSE){
   invisible(as.list(s))
 }
 
-#' @rdname restbench-option
+#' @rdname restbatch-option
 #' @export
-restbench_getopt <- function(key, default = NA, temp = TRUE){
+restbatch_getopt <- function(key, default = NA, temp = TRUE){
   s <- get('.settings')
   tmp <- s$..temp
 
@@ -180,10 +180,10 @@ restbench_getopt <- function(key, default = NA, temp = TRUE){
   default
 }
 
-#' @rdname restbench-option
+#' @rdname restbatch-option
 #' @export
-restbench_confpath <- function(cfile = 'settings.yaml'){
-  d <- R_user_dir('restbench', 'config')
+restbatch_confpath <- function(cfile = 'settings.yaml'){
+  d <- R_user_dir('restbatch', 'config')
   normalizePath(file.path(d, cfile), mustWork = FALSE)
 }
 

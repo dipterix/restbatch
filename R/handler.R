@@ -1,9 +1,9 @@
 request_authinfo <- function(req, key){
   header <- as.list(req$HEADERS)
-  header[[sprintf('restbench.%s', key)]]
+  header[[sprintf('restbatch.%s', key)]]
 }
 
-# task_name <- task$task_name; userid <- restbench:::get_user(); packed=F
+# task_name <- task$task_name; userid <- restbatch:::get_user(); packed=F
 
 #' @export
 run_task <- function(task, userid){
@@ -27,16 +27,16 @@ run_task <- function(task, userid){
 
   cat("Sending task: ", task$task_name, '\n')
 
-  settings <- getOption("restbench.settings")
+  settings <- getOption("restbatch.settings")
 
   f <- future::future({
     load_server_settings(settings)
 
     # Override cluster functions here (inside of future)
-    # workers <- getOption('restbench.max_concurrent_jobs', 1L)
+    # workers <- getOption('restbatch.max_concurrent_jobs', 1L)
     # reg$cluster.functions <- batchtools::makeClusterFunctionsSocket(workers, 1)
 
-    eval(parse(file = getOption("restbench.batch_cluster")))
+    eval(parse(file = getOption("restbatch.batch_cluster")))
 
     batchtools::sweepRegistry(reg = reg)
     batchtools::saveRegistry(reg = reg)
@@ -61,22 +61,22 @@ run_task <- function(task, userid){
 #' @export
 handler_unpack_task <- function(req){
   # general flags
-  debug <- getOption('restbench.debug', FALSE)
-  max_worker <- restbench_getopt('max_worker', default = 1L)
+  debug <- getOption('restbatch.debug', FALSE)
+  max_worker <- restbatch_getopt('max_worker', default = 1L)
 
   # parse
   req_header <- as.list(req$HEADERS)
-  userid <- req_header$restbench.userid
+  userid <- req_header$restbatch.userid
 
-  workers <- as.integer(getOption('restbench.max_concurrent_jobs'))
+  workers <- as.integer(getOption('restbatch.max_concurrent_jobs'))
   if(!length(workers) || is.na(workers[[1]])){
     workers <- NULL
   } else {
     workers <- workers[[1]]
   }
 
-  task_name = req_header$restbench.task_name
-  packed <- (req_header$restbench.standalone == TRUE)
+  task_name = req_header$restbatch.task_name
+  packed <- (req_header$restbatch.standalone == TRUE)
 
   # unpack data
   root <- get_task_root()
@@ -106,7 +106,7 @@ handler_unpack_task <- function(req){
   }
 
   # restore task
-  task_name = req_header$restbench.task_name
+  task_name = req_header$restbatch.task_name
   path <- get_task_path(task_name, asis = TRUE, userid = userid)
   suppressMessages({
     reg <- batchtools::loadRegistry(path, work.dir = root,
@@ -175,24 +175,24 @@ handler_validate_auth <- function(req, res) {
   print(path)
 
   # body <- req$postBody
-  auth <- as.list(req$HEADERS[startsWith(names(req$HEADERS), "restbench.")])
+  auth <- as.list(req$HEADERS[startsWith(names(req$HEADERS), "restbatch.")])
 
   if(!length(body)){
     res$status <- 401 # Unauthorized
     return(list(error="Invalid request header"))
   }
 
-  time <- auth$restbench.timestamp
+  time <- auth$restbatch.timestamp
   request_age <- compare_timeStamp(time)
-  if(!isTRUE(abs(request_age) < getOption("restbench.request_timeout", Inf))){
+  if(!isTRUE(abs(request_age) < getOption("restbatch.request_timeout", Inf))){
     # This request is made long time ago or faked, fail the auth
     res$status <- 401 # Unauthorized
     return(list(error="Your request has invalid timestamp. Please make sure your system time is synchronized to the world time."))
   }
 
-  userid <- auth$restbench.userid
+  userid <- auth$restbatch.userid
 
-  tokens <- auth$restbench.tokens
+  tokens <- auth$restbatch.tokens
   # Encode public token
   # msg <- charToRaw(time)
   # key <- pubkey$ssh

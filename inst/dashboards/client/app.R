@@ -2,7 +2,7 @@
 
 # library(shinydashboard)
 library(shiny)
-library(restbench)
+library(restbatch)
 
 
 
@@ -89,7 +89,7 @@ client_app <- function(module_id = 'client'){
       refresh_table <- function(assign = TRUE){
         # get local database on tasks
         try({
-          raw <- restbench::list_tasks(status = 'all', order = TRUE, expire = local_data$expire)
+          raw <- restbatch::list_tasks(status = 'all', order = TRUE, expire = local_data$expire)
           task_table <- data.frame(
             `Readable Name` = stringr::str_remove_all(raw$name, sprintf("(^%s[_]+)|(__[a-zA-Z0-9]{16})", raw$userid)),
             Submitted = ifelse(raw$submitted > 0, sprintf("%s:%s", raw$serverip, raw$serverport), "No"),
@@ -253,7 +253,7 @@ client_app <- function(module_id = 'client'){
                                                make_default = FALSE, validate = TRUE)
                 if(isTRUE(newly_started)){
                   on.exit({
-                    try({server_kill(host = task$submitted_to$host, port = task$submitted_to$port)}, silent = TRUE)
+                    try({kill_server(host = task$submitted_to$host, port = task$submitted_to$port)}, silent = TRUE)
                   })
                 }
                 status <- as.data.frame(task$server_status())
@@ -394,10 +394,10 @@ client_app <- function(module_id = 'client'){
 }
 
 
-app <- client_app("restbench-client")
+app <- client_app("restbatch-client")
 shiny::shinyApp(
   ui = shinydashboard::dashboardPage(
-    skin = 'purple', title = "Restbench Viewer",
+    skin = 'purple', title = "restbatch Viewer",
     shinydashboard::dashboardHeader(title = "Task Viewer (Client)"),
     shinydashboard::dashboardSidebar(disable = TRUE),
     shinydashboard::dashboardBody(app$ui("client-dashboard"))

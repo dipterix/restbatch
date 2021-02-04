@@ -12,30 +12,30 @@ compare_timeStamp <- function(s, now = Sys.time(), fmt = "%Y-%m-%d %H:%M:%S"){
 }
 
 get_user <- function(){
-  uid <- restbench_getopt("userid", default = NA)
+  uid <- restbatch_getopt("userid", default = NA)
   if(is.na(uid)){
     uid <- dipsaus::session_uuid()
-    restbench_setopt(key = "userid", value = uid)
+    restbatch_setopt(key = "userid", value = uid)
   }
   clean_db_entry(uid)
 }
 get_username <- function(){
-  uname <- restbench_getopt("username", default = NA)
+  uname <- restbatch_getopt("username", default = NA)
   if(is.na(uname)){
     user <- Sys.getenv('USER')
     rn <- sample(90000, 1)
     uname <- sprintf('%s-%d', user, rn)
-    restbench_setopt(key = "username", value = uname)
+    restbatch_setopt(key = "username", value = uname)
   }
   uname
 }
 
 get_fakekey <- function(public = TRUE){
   if(public){
-    f <- system.file('default_pubkey', package = 'restbench')
+    f <- system.file('default_pubkey', package = 'restbatch')
     return(openssl::read_pubkey(openssl::bignum(readLines(f, n = 1))))
   } else {
-    f <- system.file('default_key', package = 'restbench')
+    f <- system.file('default_key', package = 'restbatch')
     return(openssl::read_key(openssl::bignum(readLines(f, n = 1))))
   }
 
@@ -48,7 +48,7 @@ private_key <- function(userid){
   uid <- get_user()
   re <- list()
   # Running as local service only get inbound request
-  if(getOption('restbench.anonymous_request', TRUE) && isTRUE(userid == uid)){
+  if(getOption('restbatch.anonymous_request', TRUE) && isTRUE(userid == uid)){
     re[[1]] <- get_fakekey(public = FALSE)
   }
   # Find user key from database
@@ -63,7 +63,7 @@ public_key <- function(userid){
   my_uname <- get_user()
   re <- list()
   # Running as local service only get inbound request
-  if(getOption('restbench.anonymous_request', TRUE) && isTRUE(userid == my_uname)){
+  if(getOption('restbatch.anonymous_request', TRUE) && isTRUE(userid == my_uname)){
     re[[1]] <- get_fakekey(public = TRUE)
   }
   # Find user key from database

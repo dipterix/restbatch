@@ -20,7 +20,7 @@
 }
 
 #' @export
-print.restbench.result <- function(x, ...){
+print.restbatch.result <- function(x, ...){
   task <- attr(x, 'task')
   cat(sprintf("Results from task [%s]\n", task$task_name))
   print(task$local_status())

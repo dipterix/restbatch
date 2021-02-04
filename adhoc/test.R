@@ -1,32 +1,32 @@
-require(restbench)
+require(restbatch)
 
 f <- '~/Desktop/junk/settings.yaml'
 conf <- yaml::read_yaml('inst/default_settings.yaml')
 conf$options$debug = TRUE
 conf$options$require_auth = T
 yaml::write_yaml(conf, f)
-restbench:::db_backup(T)
+restbatch:::db_backup(T)
 
-devtools::load_all();restbench:::db_backup(T);p = restbench::ensure_server(host = "10.0.0.132", port = 7033)
+devtools::load_all();restbatch:::db_backup(T);p = restbatch::ensure_server(host = "10.0.0.132", port = 7033)
 
 
 
 # rstudioapi::jobRunScript(local({
 #   ff <- tempfile()
-#   writeLines("restbench:::start_server_internal(port = 7034, settings = '~/Desktop/junk/settings.yaml')", ff)
+#   writeLines("restbatch:::start_server_internal(port = 7034, settings = '~/Desktop/junk/settings.yaml')", ff)
 #   ff
 # }))
-# devtools::load_all();restbench:::db_backup(T);
-restbench:::start_server_internal(host = "10.0.0.132", port = 7034, settings = '~/Desktop/junk/settings.yaml')
+# devtools::load_all();restbatch:::db_backup(T);
+restbatch:::start_server_internal(host = "10.0.0.132", port = 7034, settings = '~/Desktop/junk/settings.yaml')
 
-# p = restbench::start_server(port = 7033)
+# p = restbatch::start_server(port = 7033)
 
-# restbench:::portAvailable(7034)
-# restbench:::server_alive(port = 7034)
+# restbatch:::portAvailable(7034)
+# restbatch:::server_alive(port = 7034)
 
 default_host('10.0.0.217')
 
-task <- restbench:::new_task2(function(x){
+task <- restbatch:::new_task2(function(x){
   Sys.sleep(1)
   Sys.getpid()
 }, x = 1:10, task_name = "Test"); task
@@ -42,10 +42,10 @@ task <- restbench:::new_task2(function(x){
 # res <- task$validate(); res
 res <- task$submit(pack = T, force = T); httr::content(res)
 
-# restbench:::db_backup(T)
-# restbench:::db_get_task(userid = restbench:::get_user(), client = FALSE, status = 'all')
-restbench::list_tasks(status = 'all')
-restbench::request_task_list()
+# restbatch:::db_backup(T)
+# restbatch:::db_get_task(userid = restbatch:::get_user(), client = FALSE, status = 'all')
+restbatch::list_tasks(status = 'all')
+restbatch::request_task_list()
 # task$..view()
 
 task$collect()
@@ -61,14 +61,14 @@ httr::content(res)
 
 task$server_status()
 
-restbench::request_task_list()
-task <- restbench:::restore_task('64d5010ac8f40ebd109b31817f2ccb04__noname__eODgK1F4aToedcFG')
+restbatch::request_task_list()
+task <- restbatch:::restore_task('64d5010ac8f40ebd109b31817f2ccb04__noname__eODgK1F4aToedcFG')
 task$resolved()
 task$local_status()
 
 task$..view()
 task$collect()
 
-restbench::server_kill()
+restbatch::kill_server()
 
 

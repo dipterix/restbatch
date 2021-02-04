@@ -1,10 +1,53 @@
 # TODO: inspect try catch
 
+get_ip <- function(get_public = FALSE, timeout = 3){
+  ip <- list(
+    available = c('127.0.0.1', '0.0.0.0'),
+    public = NULL
+  )
+  try({
+    s <- switch (
+      get_os(),
+      'windows' = {
+        s <- system("ipconfig", intern=TRUE)
+        s <- stringr::str_extract(s, "IPv4 Address.*[0-9]{1,3}\\.[0-9]{1,3}\\.[0-9]{1,3}\\.[0-9]{1,3}.*")
+        s <- s[!is.na(s)]
+        stringr::str_extract(s, '[0-9]{1,3}\\.[0-9]{1,3}\\.[0-9]{1,3}\\.[0-9]{1,3}')
+      }, {
+        s <- system("ifconfig 2>&1", intern = TRUE)
+        s <- stringr::str_extract(s, "inet.*[0-9]{1,3}\\.[0-9]{1,3}\\.[0-9]{1,3}\\.[0-9]{1,3}")
+        s <- s[!is.na(s)]
+        # extract the first one as the second is mask
+        stringr::str_extract(s, '[0-9]{1,3}\\.[0-9]{1,3}\\.[0-9]{1,3}\\.[0-9]{1,3}')
+      }
+    )
+    ip$available <- c(ip$available, s[!is.na(s)])
+
+    # also use ipify
+    if(get_public){
+      try({
+        res <- httr::GET("https://api.ipify.org?format=json", httr::timeout(timeout))
+        res <- httr::content(res, encoding = 'UTF-8')
+        s <- res$ip
+        s <- stringr::str_extract(s, "[0-9]{1,3}\\.[0-9]{1,3}\\.[0-9]{1,3}\\.[0-9]{1,3}")
+        s <- s[!is.na(s)]
+        ip$public <- c(ip$public, s)
+      }, silent = TRUE)
+    }
+  })
+  ip$available <- unique(ip$available)
+  ip
+}
+
+host_is_local <- function(host, include_public = FALSE, ...){
+  host %in% unlist(get_ip(get_public = include_public, ...))
+}
+
 
 watch_tasks <- function(){
 
-  debug <- getOption('restbench.debug', FALSE)
-  release_speed <- as.numeric(getOption('restbench.max_release_tasks_per_second', 10.0))
+  debug <- getOption('restbatch.debug', FALSE)
+  release_speed <- as.numeric(getOption('restbatch.max_release_tasks_per_second', 10.0))
 
   if(.globals$paused){
     if(debug){
@@ -81,9 +124,9 @@ watch_tasks <- function(){
 
   if(.globals$tasks$size() > 0){
 
-    smry <- server_summary(include_expired = FALSE)
+    smry <- summarize_server(include_expired = FALSE)
     running_tasks <- smry[['running']]
-    max_tasks <- getOption("restbench.max_concurrent_tasks", 1L)
+    max_tasks <- getOption("restbatch.max_concurrent_tasks", 1L)
 
     if(max_tasks > running_tasks){
 
@@ -93,7 +136,7 @@ watch_tasks <- function(){
       tasks <- .globals$tasks$mremove(max_tasks - running_tasks)
 
       # This is a bad name, will change it later to handler_submittask
-      run_task <- getOption('restbench.func_newjob', "restbench::run_task")
+      run_task <- getOption('restbatch.func_newjob', "restbatch::run_task")
       if(!is.function(run_task)){
         run_task <- eval(parse(text=run_task))
       }
@@ -122,7 +165,7 @@ watch_later <- function(){
 
   if(.globals$watchers == 0){
 
-    interval <- getOption('restbench.task_queue_interval', 1)
+    interval <- getOption('restbatch.task_queue_interval', 1)
     interval <- max(interval, 0.1)
     interval <- min(interval, 10)
 
@@ -132,7 +175,13 @@ watch_later <- function(){
 
       watch_later()
 
-      watch_tasks()
+      tryCatch({
+        watch_tasks()
+      }, error = function(e){
+        print(e)
+        cat(e$message)
+        cat("\n------------- see above error message ------------")
+      })
 
     }, delay = interval)
 
@@ -144,28 +193,28 @@ watch_later <- function(){
 
 #' @export
 conf_sample <- function(file = stdout()){
-  s <- readLines(system.file('default_settings.yaml', package = 'restbench'))
+  s <- readLines(system.file('default_settings.yaml', package = 'restbatch'))
   writeLines(s, file)
   # yaml::write_yaml(list(
   #   modules = list(
-  #     jobs = "{system.file(\"scheduler/jobs.R\", package = \"restbench\")}",
-  #     validate = "{system.file(\"scheduler/validate.R\", package = \"restbench\")}"
+  #     jobs = "{system.file(\"scheduler/jobs.R\", package = \"restbatch\")}",
+  #     validate = "{system.file(\"scheduler/validate.R\", package = \"restbatch\")}"
   #   ),
   #   options = list(
   #     debug = FALSE,
   #     require_auth = TRUE,
   #     modules_require_auth = "jobs, validate",
   #     request_timeout = Inf,
-  #     task_root = "{restbench::restbench_getopt(\"task_root\")}",
+  #     task_root = "{restbatch::restbatch_getopt(\"task_root\")}",
   #     max_nodetime = 864000L,
-  #     func_newjob = "restbench:::run_task",
-  #     func_validate_server = "restbench::handler_validate_server"
+  #     func_newjob = "restbatch:::run_task",
+  #     func_validate_server = "restbatch::handler_validate_server"
   #   )), file)
 }
 
 # only use it in the server
 module_require_auth <- function(module, settings){
-  module %in% getOption('restbench.modules_require_auth_list')
+  module %in% getOption('restbatch.modules_require_auth_list')
 }
 
 
@@ -184,25 +233,25 @@ load_server_settings <- function(settings){
       val <- glue::glue(val)
     }
 
-    do.call("options", structure(list(val), names = sprintf('restbench.%s', nm)))
+    do.call("options", structure(list(val), names = sprintf('restbatch.%s', nm)))
   }
   # Settings to set options on modules need authentication
   modules_require_auth <- unlist(
-    stringr::str_split(getOption("restbench.modules_require_auth",
+    stringr::str_split(getOption("restbatch.modules_require_auth",
                                  paste(names(modules), collapse = ',')), "[, ]+"))
-  require_auth <- getOption("restbench.require_auth", TRUE)
+  require_auth <- getOption("restbatch.require_auth", TRUE)
   if(!require_auth){
     modules_require_auth <- NULL
   }
-  options('restbench.modules_require_auth_list' = modules_require_auth)
-  options("restbench.settings" = settings)
+  options('restbatch.modules_require_auth_list' = modules_require_auth)
+  options("restbatch.settings" = settings)
 
   # scripts related to server configurations
   startup_script <- glue::glue(server_scripts$startup_script)
-  options("restbench.startup_script" = startup_script[file.exists(startup_script)])
+  options("restbatch.startup_script" = startup_script[file.exists(startup_script)])
 
   batch_cluster <- glue::glue(server_scripts$batch_cluster)
-  options("restbench.batch_cluster" = batch_cluster[file.exists(batch_cluster)])
+  options("restbatch.batch_cluster" = batch_cluster[file.exists(batch_cluster)])
 
 
 }
@@ -210,7 +259,7 @@ load_server_settings <- function(settings){
 start_server_internal <- function(
   host = default_host(),
   port = default_port(),
-  settings = system.file("debug_settings.yaml", package = 'restbench')
+  settings = system.file("debug_settings.yaml", package = 'restbatch')
 ){
 
   default_host(host)
@@ -226,10 +275,10 @@ start_server_internal <- function(
 
 
   tryCatch({
-    eval(parse(file = getOption("restbench.startup_script", NULL)))
+    eval(parse(file = getOption("restbatch.startup_script", NULL)))
   }, error = function(e){
     warning("[settings -> startup_script] is invalid script. Use default setup script")
-    future::plan(future::multisession, workers = getOption('restbench.max_concurrent_tasks', 1L) + 1)
+    future::plan(future::multisession, workers = getOption('restbatch.max_concurrent_tasks', 1L) + 1)
   })
 
   on.exit({
@@ -257,7 +306,7 @@ start_server_internal <- function(
 
           tryCatch({
             DBI::dbExecute(conn, sprintf(
-              'UPDATE restbenchtasksserver SET status="-1" WHERE userid="%s" AND name="%s";',
+              'UPDATE restbatchtasksserver SET status="-1" WHERE userid="%s" AND name="%s";',
               item$userid, item$task$task_name
             ))
           }, error = function(e){})
@@ -278,7 +327,7 @@ start_server_internal <- function(
 
     settings <- yaml::read_yaml(settings)
     modules <- settings$modules
-    modules_require_auth <- getOption('restbench.modules_require_auth_list')
+    modules_require_auth <- getOption('restbatch.modules_require_auth_list')
 
     # Construct Router
     root = plumber::pr()
@@ -296,9 +345,9 @@ start_server_internal <- function(
     # current$filter(name = "logger", expr = logger)
     # validate_auth
 
-    options("restbench.active_server" = current)
+    options("restbatch.active_server" = current)
 
-    current$setDebug(debug = getOption("restbench.debug", TRUE))
+    current$setDebug(debug = getOption("restbatch.debug", TRUE))
 
     current
 
@@ -308,7 +357,7 @@ start_server_internal <- function(
 portAvailable <- function(port){
   tryCatch({
     srv <- httpuv::startServer(
-      host = default_host(),
+      host = default_host(allow0 = FALSE),
       port, list(), quiet = TRUE)
   }, error = function(e) {
     port <<- 0
@@ -322,7 +371,7 @@ portAvailable <- function(port){
 
 findPort <- function (port, mustWork = NA) {
   if (missing(port) || is.null(port)) {
-    port <- as.integer(restbench_getopt("default_port", default = 7033))
+    port <- as.integer(restbatch_getopt("default_port", default = 7033))
     if(length(port) != 1 || is.na(port) || !is.integer(port)){
       port <- httpuv::randomPort()
     }
@@ -330,7 +379,7 @@ findPort <- function (port, mustWork = NA) {
       if(!portAvailable(port)){
         port <- httpuv::randomPort()
       } else {
-        restbench_setopt('default_port', port, .save = FALSE)
+        restbatch_setopt('default_port', port, .save = FALSE)
         break
       }
     }
@@ -348,7 +397,12 @@ findPort <- function (port, mustWork = NA) {
 
 
 #' @export
-server_alive <- function(port = default_port(), host = default_host(), protocol = default_protocol(), path = "validate/ping", ...){
+server_alive <- function(port = default_port(), host = default_host(allow0 = FALSE),
+                         protocol = default_protocol(), path = "validate/ping", ...){
+
+  if(host == '0.0.0.0'){
+    host <- '127.0.0.1'
+  }
 
   # check if the session is active
   valid <- FALSE
@@ -359,7 +413,7 @@ server_alive <- function(port = default_port(), host = default_host(), protocol 
     )
 
     uid <- get_user()
-    req_token <- res$request$headers['restbench.tokens']
+    req_token <- res$request$headers['restbatch.tokens']
     token <- httr::content(res)[['token']][[1]]
     keys <- private_key(uid)
     for(key in keys){
@@ -378,7 +432,11 @@ server_alive <- function(port = default_port(), host = default_host(), protocol 
 }
 
 #' @export
-server_kill <- function(host = default_host(), port = default_port(), protocol = default_protocol(), path = 'validate/shutdown'){
+kill_server <- function(host = default_host(allow0 = FALSE), port = default_port(),
+                        protocol = default_protocol(), path = 'validate/shutdown'){
+  if(host == '0.0.0.0'){
+    host <- '127.0.0.1'
+  }
   res <- request_server(sprintf('%s://%s:%d/%s', protocol, host, port, path))
   ret <- httr::content(res)
   attr(ret, 'response') <- res
@@ -392,10 +450,11 @@ server_kill <- function(host = default_host(), port = default_port(), protocol =
 start_server <- function(
   host = default_host(),
   port = default_port(),
-  settings = system.file("default_settings.yaml", package = 'restbench'),
+  settings = system.file("default_settings.yaml", package = 'restbatch'),
   protocol = default_protocol(),
   path_validate = "validate/ping",
   make_default = TRUE,
+  supervise = FALSE,
   ...
 ){
   port <- as.integer(port)
@@ -405,10 +464,13 @@ start_server <- function(
     port <- findPort(NULL, mustWork = TRUE)
   }
 
+
   item <- dipsaus::list_to_fastmap2(list(
     host = host,
     port = port,
-    native = FALSE
+    native = FALSE,
+    supervise = supervise,
+    local = host_is_local(host)
   ))
 
   # Check if a server is running
@@ -417,12 +479,12 @@ start_server <- function(
     # host = '127.0.0.1'; port = 7033; protocol = 'http'
     alive <- server_alive(port = port, host = host, protocol = protocol, path = path_validate)
     if(!alive){
-      stop("Port: ", port, " is occupied or invalid.")
+      stop("Port: ", port, " at ", host, " is occupied or invalid.")
     }
   }
 
   # check existing ports
-  server_root <- file.path(R_user_dir('restbench', 'cache'), 'servers')
+  server_root <- file.path(R_user_dir('restbatch', 'cache'), 'servers')
   server_dir <- file.path(server_root, port)
 
   if(!alive){
@@ -440,9 +502,9 @@ start_server <- function(
         command = R.home("Rscript"),
         args = c(
           "--no-save", "--no-restore",
-          "--default-packages=utils,restbench",
+          "--default-packages=utils,restbatch",
           "-e",
-          sprintf('"restbench:::start_server_internal(host=\'%s\',port=%d,settings=\'%s\')"',
+          sprintf('"restbatch:::start_server_internal(host=\'%s\',port=%d,settings=\'%s\')"',
                   host, port, normalizePath(settings, mustWork = TRUE))
         ),
         stdout = file.path(server_dir, 'stdout.log'),
@@ -450,28 +512,28 @@ start_server <- function(
         wait = FALSE, minimized = TRUE, invisible = FALSE
       )
     } else {
-      # server_dir <- "/Users/beauchamplab/Library/Caches/org.R-project.R/R/restbench/servers/7033"
+      # server_dir <- "/Users/beauchamplab/Library/Caches/org.R-project.R/R/restbatch/servers/7033"
       # host = '127.0.0.1'
       # port = 7033
-      # settings = system.file("default_settings.yaml", package = 'restbench')
+      # settings = system.file("default_settings.yaml", package = 'restbatch')
       # protocol = 'http'
 
-      start_script <- file.path(server_dir, "restbench.start.sh")
-      file.copy(system.file('bin/start_server.sh', package = 'restbench'), start_script, overwrite = TRUE)
+      start_script <- file.path(server_dir, "restbatch.start.sh")
+      file.copy(system.file('bin/start_server.sh', package = 'restbatch'), start_script, overwrite = TRUE)
       Sys.chmod(start_script, mode = "0777", use_umask = FALSE)
       system2( start_script, c(
         settings, port, host, protocol, R.home('R')
       ), stdout = FALSE, stderr = FALSE, wait = FALSE)
-      # writeLines(sprintf('tempdir(check = TRUE)\nrestbench:::start_server_internal(host=\'%s\',port=%s,settings=\'%s\')',
+      # writeLines(sprintf('tempdir(check = TRUE)\nrestbatch:::start_server_internal(host=\'%s\',port=%s,settings=\'%s\')',
       #                    host, port, settings), start_script)
       #
-      # infile <- file.path(server_dir, "restbench.start.sh")
+      # infile <- file.path(server_dir, "restbatch.start.sh")
       # writeLines('', infile)
 
 
       # on.exit({ unlink(f) }, add = TRUE)
 
-      # cmd <- sprintf('nohup "%s" --no-save --no-restore -e "restbench:::start_server_internal(host=\'%s\',port=%s,settings=\'%s\')" > "%s" 2> "%s" & disown', R.home('Rscript'), host, port, settings,
+      # cmd <- sprintf('nohup "%s" --no-save --no-restore -e "restbatch:::start_server_internal(host=\'%s\',port=%s,settings=\'%s\')" > "%s" 2> "%s" & disown', R.home('Rscript'), host, port, settings,
       #                normalizePath(file.path(server_dir, 'stdout.log'), mustWork = FALSE),
       #                normalizePath(file.path(server_dir, 'stderr.log'), mustWork = FALSE))
       #
@@ -484,24 +546,56 @@ start_server <- function(
 
 
   if(is.null(.globals$servers[[host]])){
-    .globals$servers[[host]] <- list()
+    .globals$servers[[host]] <- dipsaus::fastmap2()
   }
-  port <- as.character(port)
-  if(is.null(.globals$servers[[host]][[port]])){
-    .globals$servers[[host]][[port]] <- item
-  }
+  dipsaus::list_to_fastmap2(item, .globals$servers[[host]][[port]])
 
-  message(sprintf("A restbench server started at %s://%s:%s", protocol, host, port))
+
+  message(sprintf("Starting a restbatch server at %s://%s:%s", protocol, host, port))
 
   if(make_default){
     default_host(host)
     default_port(port)
     default_protocol(protocol)
-    # options("restbench.default_server" = item)
+    # options("restbatch.default_server" = item)
     message("You have chosen this server to be the default server.")
   }
-
+  autoclose_server(host = host, port = port, auto_close = supervise)
   invisible(.globals$servers[[host]][[port]])
+}
+
+
+autoclose_server <- function(host = default_host(), port = default_port(), auto_close = TRUE){
+  # fastmap is a list so we cannot register finalizers
+  # ensure supervised servers are correctly removed when R session exit
+
+  if(length(port) != 1 || is.na(port) || !is.integer(port) || port <= 0 || port > 65535){
+    stop("Invalid port: must be an integer.")
+  }
+
+  if(is.null(.globals$servers[[host]])){
+    .globals$servers[[host]] <- dipsaus::fastmap2()
+  }
+  if(is.null(.globals$servers[[host]][[port]])){
+    .globals$servers[[host]][[port]] <- dipsaus::fastmap2()
+  }
+  item <- .globals$servers[[host]][[port]]
+  item$supervise <- isTRUE(auto_close)
+  item$native <- FALSE
+  item$local <- host_is_local(host)
+
+  reg.finalizer(environment(.subset2(item, "as_list")), function(e){
+    if(isTRUE(e$get("supervise"))){
+      # Connection could be closed or the https is disabled, or simply don't have
+      # the correct right to shut down the server
+      try({
+        kill_server(host = e$get("host"), port = e$get("port"), protocol = "https")
+      }, silent = TRUE)
+      try({
+        kill_server(host = e$get("host"), port = e$get("port"), protocol = "http")
+      }, silent = TRUE)
+    }
+  })
 }
 
 #' @export
@@ -517,7 +611,7 @@ ensure_server <- function(host = default_host(), port = default_port(),
       timeout <- Sys.time() + validate_maxwait
       while(!server_alive(port = port, host = host, protocol = protocol, ...)){
         if(timeout < Sys.time()){
-          stop("Cannot create server at ", host, ":", port, "\nPlease manually start server using `restbench::start_server` function.")
+          stop("Cannot create server at ", host, ":", port, "\nPlease manually start server using `restbatch::start_server` function.")
         }
         Sys.sleep(validate_sleep)
       }

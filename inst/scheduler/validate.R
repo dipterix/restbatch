@@ -1,10 +1,10 @@
-handler_validate_server <- getOption("restbench.func_validate_server", "restbench::handler_validate_server")
+handler_validate_server <- getOption("restbatch.func_validate_server", "restbatch::handler_validate_server")
 if(!is.function(handler_validate_server)){
   handler_validate_server <- eval(parse(text = handler_validate_server))
 }
-debug <- getOption('restbench.debug', FALSE)
+debug <- getOption('restbatch.debug', FALSE)
 
-auth_enabled_modules <- getOption('restbench.modules_require_auth_list')
+auth_enabled_modules <- getOption('restbatch.modules_require_auth_list')
 
 #* Ping and get validated information back from server
 #* @serializer json
@@ -21,13 +21,13 @@ function(req) {
 function(req) {
   if(debug){assign('req', req, envir = globalenv())}
 
-  ns <- asNamespace('restbench')
+  ns <- asNamespace('restbatch')
 
   signal_stop <- FALSE
   if('validate' %in% auth_enabled_modules){
     uid <- ns$get_user()
     req_header <- as.list(req$HEADERS)
-    userid <- req_header$restbench.userid
+    userid <- req_header$restbatch.userid
     if(userid == uid){
       signal_stop <- TRUE
     }
