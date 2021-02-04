@@ -26,6 +26,8 @@ The package is to be on CRAN once fully tested
 
 ## 2. Basic usage
 
+### 2.1 Start a `restbatch` server
+
 In R or RStudio console
 
 ```r
@@ -43,7 +45,7 @@ server_alive()
 
 A local server will run locally at port `7033`. By default the server does not accept requests from the outside. 
 
-### 2.1 Schedule a task
+### 2.2 Schedule a task
 
 First, let's create a new task that simply return the process IDs after 2 seconds. The task contains 10 such jobs (`x=1:10`) and the readable name is `Test`.
 
@@ -113,4 +115,43 @@ task$collect()
 
 If not resolved, this step will block your current session until the task is finished or errors occur. The result will be a list of length 10 (length of `x` variable).
 
+### 2.3 Shutdown a server
+
+Kill the server right now
+
+```r
+kill_server(host = "127.0.0.1", port = 7033)
+```
+
+All unfinished tasks will be marked as `canceled` immediately. You need to submit the task again to resume them (see section 2.5 below).
+
+
+If you have previously set the default `host` and `port`, simply call `kill_server()`
+
+To kill the server once your current R session is closed,
+
+```r
+autoclose_server(host = "127.0.0.1", port = 7033, auto_close = TRUE)
+```
+
+### 2.4 Client task viewer
+
+An interactive client viewer is available using R `shiny` package. This viewer can be enabled via
+
+```r
+# Install shinydashboard if you haven't done so
+# install.packages(c("shinydashboard"))
+
+source(system.file('dashboards/client/app.R', package = 'restbatch'))
+```
+
+<img src="https://user-images.githubusercontent.com/8163576/106888900-d6dabe80-66ac-11eb-8c1f-27716a3a7112.png" width="50%">
+
+### 2.5 Resume a task
+
+If a server is killed, all unfinished tasks will be canceled. The tasks can be resumed without re-run everything. This requires to submit with flag `pack=FALSE` and `force=TRUE`:
+
+```r
+task$submit(pack=FALSE, force=TRUE)
+```
 

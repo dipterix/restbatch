@@ -10,10 +10,21 @@ task__local_status <- function(task){
   task$reload_registry(writeable = FALSE)
   batchtools::getStatus(reg = task$reg)
 }
-task__submit <- function(task, pack = FALSE, force = FALSE){
+task__submit <- function(task, pack = NA, force = FALSE){
 
   if(task$submitted && !force){
     stop("Task has been submitted. To re-submit to the server, use `force=TRUE`")
+  }
+
+  if(is.na(pack)){
+    # check whether host is local
+    if(host_is_local(task$host, include_public = NA)){
+      # server and client share the same task dir, no need to pack
+      pack <- FALSE
+    } else {
+      # Need to pack
+      pack <- TRUE
+    }
   }
 
   pack <- isTRUE(pack)
@@ -340,7 +351,7 @@ new_task_internal <- function(task_root, task_dir, task_name, reg){
     # methods
     local_status = function(){ task__local_status(task) },
     server_status = function(){ task__server_status(task) },
-    submit = function(pack = FALSE, force = FALSE){ task__submit(task, pack = pack, force = force) },
+    submit = function(pack = NA, force = FALSE){ task__submit(task, pack = pack, force = force) },
     resolved = function(){ task__resolved(task) },
     clear_registry = function(){ task__clear_registry(task) },
     remove = function(wait = 0.01){ task__remove(task, wait = wait) },

@@ -1,9 +1,9 @@
 # TODO: inspect try catch
 
-get_ip <- function(get_public = FALSE, timeout = 3){
+get_ip <- function(get_public = NA, timeout = 3){
   ip <- list(
     available = c('127.0.0.1', '0.0.0.0'),
-    public = NULL
+    public = if(isFALSE(get_public)) { NULL } else { getOption("restbench.public_ip", NULL) }
   )
   try({
     s <- switch (
@@ -24,22 +24,23 @@ get_ip <- function(get_public = FALSE, timeout = 3){
     ip$available <- c(ip$available, s[!is.na(s)])
 
     # also use ipify
-    if(get_public){
-      try({
+    if(isTRUE(get_public)){
+      ip$public <- getOption("restbench.public_ip", try({
         res <- httr::GET("https://api.ipify.org?format=json", httr::timeout(timeout))
         res <- httr::content(res, encoding = 'UTF-8')
         s <- res$ip
         s <- stringr::str_extract(s, "[0-9]{1,3}\\.[0-9]{1,3}\\.[0-9]{1,3}\\.[0-9]{1,3}")
         s <- s[!is.na(s)]
-        ip$public <- c(ip$public, s)
-      }, silent = TRUE)
+        options("restbench.public_ip" = s)
+        s
+      }, silent = TRUE))
     }
   })
   ip$available <- unique(ip$available)
   ip
 }
 
-host_is_local <- function(host, include_public = FALSE, ...){
+host_is_local <- function(host, include_public = NA, ...){
   host %in% unlist(get_ip(get_public = include_public, ...))
 }
 

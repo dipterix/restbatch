@@ -394,16 +394,21 @@ client_app <- function(module_id = 'client'){
 }
 
 
-app <- client_app("restbatch-client")
-shiny::shinyApp(
-  ui = shinydashboard::dashboardPage(
-    skin = 'purple', title = "restbatch Viewer",
-    shinydashboard::dashboardHeader(title = "Task Viewer (Client)"),
-    shinydashboard::dashboardSidebar(disable = TRUE),
-    shinydashboard::dashboardBody(app$ui("client-dashboard"))
-  ),
-  server = function(input, output, session) {
-    app$server("client-dashboard")
-  }, options = list(launch.browser = .rs.invokeShinyWindowViewer)
-)
+if(interactive()){
+  local({
+    app <- client_app("restbatch-client")
+    shiny_app <- shiny::shinyApp(
+      ui = shinydashboard::dashboardPage(
+        skin = 'purple', title = "restbatch Viewer",
+        shinydashboard::dashboardHeader(title = "Task Viewer (Client)"),
+        shinydashboard::dashboardSidebar(disable = TRUE),
+        shinydashboard::dashboardBody(app$ui("client-dashboard"))
+      ),
+      server = function(input, output, session) {
+        app$server("client-dashboard")
+      }, options = list(launch.browser = TRUE)
+    )
+    print(shiny_app)
+  })
+}
 
