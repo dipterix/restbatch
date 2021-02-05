@@ -14,6 +14,26 @@ prepare_request <- function(){
   ))
 }
 
+#' Send requests to the server to query the server status or task status
+#' @description \describe{
+#' \item{\code{request_server}}{sends general request with authentication
+#' tokens ready in the request headers}
+#' \item{\code{request_task_list}}{get list of tasks of your current userid
+#' from the server}
+#' }
+#' @param url,protocol,host,port server location-related configurations
+#' @param body a list of request body
+#' @param header additional header key-value pairs
+#' @param method method of request; choices are \code{'POST'} and \code{'GET'}
+#' @param encode serialization method to encode request body
+#' @param task_status task status to filter
+#' @param path route path to send requests to
+#' @return \code{'httr'} response. You can use \code{\link[httr]{content}} to
+#' check the response contents.
+#' @name restbatch-requests
+NULL
+
+#' @rdname restbatch-requests
 #' @export
 request_server <- function(
   url, body = list(), header = list(), method = c('POST', 'GET'), encode = 'json'){
@@ -43,6 +63,7 @@ request_server <- function(
 
 }
 
+#' @rdname restbatch-requests
 #' @export
 request_task_list <- function(task_status = 'valid', host = default_host(allow0 = FALSE),
                               port = default_port(), protocol = default_protocol(), path = 'jobs/list'){
@@ -66,4 +87,3 @@ request_task_list <- function(task_status = 'valid', host = default_host(allow0 
   res
 }
 
-# Sweep, and collect tasks

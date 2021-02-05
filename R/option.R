@@ -1,6 +1,6 @@
 
 default_settings <- function(s = dipsaus::fastmap2()){
-  s[['task_root']] <- '~/rave_data/cache_dir/restbatch'
+  s[['task_root']] <- file.path(R_user_dir(package = 'restbatch', which = 'cache'), "tasks")
   s[['verbose_level']] <- 'DEBUG'
 
   s[['max_worker']] <- parallel::detectCores() - 1

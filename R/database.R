@@ -19,6 +19,9 @@ clean_db_entry <- function(entry, disallow = "[^a-zA-Z0-9]",
   entry
 }
 
+
+
+
 db_init_tables <- function(conn){
 
   DBI::dbWriteTable(conn, "restbatchlocker", data.frame(
@@ -27,58 +30,59 @@ db_init_tables <- function(conn){
     lockedBy = ""
   ))
 
-  DBI::dbWriteTable(conn, "restbatchuser", data.frame(
+  # always add local user a key
+  keys <- keygen()
+
+  DBI::dbExecute(conn, paste(c(
+    "CREATE TABLE restbatchuser (",
+    "  userid TEXT NOT NULL, ",
+    "  username TEXT NOT NULL, ",
+    "  private_key TEXT NOT NULL, ",
+    "  public_key TEXT NOT NULL, ",
+    "  date_added REAL NOT NULL, ",
+
+    # user, owner, admin (restbatch takes no diff between owner and admin)
+    # for public server, tasks should run in docker or other places, not the main
+    # server, so
+    # if someone has access to the database, then they can edit
+    '  role TEXT NOT NULL DEFAULT "user" ',
+    ");"
+  ), collapse = ''))
+
+  DBI::dbAppendTable(conn, "restbatchuser", data.frame(
     userid = get_user(),
     username = get_username(),
-    private_key = readLines(system.file('default_key', package = 'restbatch'), n = 1),
-    public_key = readLines(system.file('default_pubkey', package = 'restbatch'), n = 1),
-    date_added = as.numeric(Sys.time())
+    private_key = keys$private,
+    public_key = keys$public,
+    date_added = as.numeric(Sys.time()),
+    role = "owner"
   ))
 
   DBI::dbCreateTable(conn, "restbatchtasksclient", data.frame(
     name = "",
     userid = "",
-    submitted = TRUE,
-    collected = TRUE,
-    error = FALSE,
+    submitted = 1L,
+    collected = 1L,
+    error = 0L,
     path = "",
     serverip = "",
-    serverport = 0,
-    removed = TRUE,
+    serverport = 0L,
+    removed = 1L,
     time_added = 0.01
   ))
 
   DBI::dbCreateTable(conn, "restbatchtasksserver", data.frame(
     name = "",
     userid = "",
-    status = TRUE, # 0: inited, 1: running, 2: completed/error
-    error = FALSE,
-    removed = TRUE,
-    packed = FALSE,
+    status = 1L, # 0: inited, 1: running, 2: completed/error
+    error = 0L,
+    removed = 1L,
+    packed = 0L,
     path = "",
     ncpu = 0,
     clientip = "",
     time_added = 0.01
   ))
-}
-
-db_backup <- function(drop=FALSE){
-  dbdir <- file.path(R_user_dir('restbatch', which = "data"), 'DB')
-  dir_create2(dbdir)
-
-  db_file <- file.path(dbdir, "restbatch.sqlite")
-  if(file.exists(db_file)){
-    # copy
-    tdir <- file.path(R_user_dir('restbatch', which = "data"), strftime(Sys.time(), 'DB.old.%Y%m%d%H%M%S'))
-    dir_create2(tdir)
-    file.copy(dbdir, tdir, overwrite = TRUE, recursive = TRUE, copy.mode = TRUE, copy.date = TRUE)
-
-    if(drop){
-      tmpf <- file.path(dbdir, strftime(Sys.time(), "restbatch.old.%Y%m%d%H%M%S.sqlite"))
-      file.rename(db_file, tmpf)
-      unlink(tmpf, force = TRUE)
-    }
-  }
 }
 
 dn_conn_ptr <- function(conn){
@@ -164,14 +168,20 @@ db_ensure <- function(close = FALSE){
 
   reinit <- FALSE
 
-  if(!all(c(c("restbatchtasksclient", "restbatchtasksserver", "restbatchuser", "restbatchlocker")) %in% tbl)){
+  if(!isTRUE(.globals$db_valid)){
+    .globals$db_valid <- db_validate(conn = conn)
+  }
+  if(!isTRUE(.globals$db_valid)){
+
+    .globals$db_valid <- TRUE
+
     # wrong db file
     if(has_file){
       if("restbatchlocker" %in% tbl){
         db_lock(conn, 10)
       }
       DBI::dbDisconnect(conn)
-      db_backup(drop = TRUE)
+      .globals$db_bkup <- db_backup(drop = TRUE)
 
       .globals$sql_conn <- DBI::dbConnect(RSQLite::SQLite(), dbname = db_file)
       conn <- .globals$sql_conn
@@ -221,8 +231,9 @@ db_unlock <- function(conn){
   invisible()
 }
 
-db_adduser <- function(userid, private_key, username = NULL, overwrite = FALSE, force = FALSE){
-
+db_adduser <- function(userid, private_key, role = c("user", "admin"),
+                       username = NULL, overwrite = FALSE, force = FALSE){
+  role <- match.arg(role)
   userid <- stringr::str_trim(userid)
 
   if(!isTRUE(userid != '' && stringr::str_detect(userid, "^[a-zA-Z0-9]+$"))){
@@ -277,26 +288,26 @@ db_adduser <- function(userid, private_key, username = NULL, overwrite = FALSE, 
   # Generate pubkey
   pubkey <- private_to_pubkey(private_key)
 
+  is_owner <- userid == get_user()
+  missing_owner <- FALSE
   if(nrow(existing_user) > 0){
     if(overwrite){
-      res <- DBI::dbSendQuery(conn, sprintf(
-        'DELETE FROM restbatchuser WHERE userid="%s";',
+      res <- DBI::dbExecute(conn, sprintf(
+        'DELETE FROM restbatchuser WHERE userid="%s" AND role<>"owner";',
         userid
       ))
-      DBI::dbGetInfo(res)
-      # res <- DBI::dbFetch(res)
-      DBI::dbClearResult(res)
+      if(is_owner){
+        missing_owner <- TRUE
+      }
     } else {
       # update username is inconsistent
 
       if(username != existing_user$username[[1]]){
 
-        res <- DBI::dbSendQuery(conn, sprintf(
+        res <- DBI::dbExecute(conn, sprintf(
           'UPDATE restbatchuser SET username="%s" WHERE userid="%s";',
           username, userid
         ))
-        DBI::dbGetInfo(res)
-        DBI::dbClearResult(res)
       }
 
     }
@@ -304,13 +315,12 @@ db_adduser <- function(userid, private_key, username = NULL, overwrite = FALSE, 
   }
 
   # Add user
-  res <- DBI::dbSendQuery(conn, sprintf(
-    'INSERT INTO restbatchuser (userid, username, private_key, public_key, date_added) VALUES ("%s", "%s", "%s", "%s", %.0f);',
-    userid, username, private_key, pubkey, as.numeric(Sys.time())
+  res <- DBI::dbExecute(conn, sprintf(
+    'INSERT INTO restbatchuser (userid, username, private_key, public_key, date_added, role) VALUES ("%s", "%s", "%s", "%s", %.0f, "%s");',
+    userid, username, private_key, pubkey, as.numeric(Sys.time()), role
   ))
-  info <- DBI::dbGetInfo(res)
-  DBI::dbClearResult(res)
-  invisible(info)
+
+  invisible()
 }
 
 db_getuser <- function(userid, unique = FALSE){
@@ -589,6 +599,32 @@ db_update_task_server <- function(task, req){
   invisible(info)
 }
 
+#' Query and list all your submitted tasks
+#' @param status filter task status on the server, choices are \code{'valid'},
+#' \code{'init'} (submitted, waiting to run), \code{'running'} (running
+#' task), \code{'finish'} (finished task), and \code{'canceled'} (canceled
+#' by the server)
+#' @param order whether to order by date submitted (in descending order);
+#' default is false
+#' @param expire positive number (in seconds) to filter out tasks
+#' that have been submitted most recently, or 0 (default) to list tasks
+#' regardless of their dates. For example, \code{expire=100} will only list
+#' tasks submitted during the past 100 seconds.
+#' @return A data frame listing tasks submitted, columns are
+#' \describe{
+#' \item{\code{name}}{task name (ID)}
+#' \item{\code{userid}}{your user ID}
+#' \item{\code{submitted}}{1 if submitted and 0 otherwise}
+#' \item{\code{collected}}{1 if result has been collected and 0 otherwise}
+#' \item{\code{error}}{1 if error occurs and 0 otherwise}
+#' \item{\code{path}}{the local directory that stores the task data}
+#' \item{\code{serverip}}{server address if the task has been submitted}
+#' \item{\code{serverport}}{server port if the task has been submitted}
+#' \item{\code{removed}}{1 if the task has been removed and 0 otherwise}
+#' \item{\code{time_added}}{UNIX time of time when task is created. Use
+#' \code{as.POSIXct(time_added, origin="1970-01-01")} to convert to read-able
+#' time; see \code{\link{as.POSIXct}}}
+#' }
 #' @export
 list_tasks <- function(status = c("valid", "running", "init", "finish", "all"), order = FALSE, expire = 0){
   status <- match.arg(status)

@@ -8,11 +8,11 @@ options:
   debug: no
   protocol: http
   require_auth: yes
-  modules_require_auth: 'jobs, validate'
   anonymous_request: no
+  modules_require_auth: 'jobs, validate'
   max_concurrent_tasks: 3
   max_concurrent_jobs: 8
-  task_queue_interval: 2
+  task_queue_interval: 1
   max_release_tasks_per_second: 10
   request_timeout: .inf
   task_root: '{restbatch::restbatch_getopt("task_root")}'

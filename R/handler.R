@@ -5,6 +5,35 @@ request_authinfo <- function(req, key){
 
 # task_name <- task$task_name; userid <- restbatch:::get_user(); packed=F
 
+#' Default handlers to process incoming requests
+#' @description \describe{
+#' \item{\code{run_task}}{schedules batch jobs and put them to a running list}
+#' \item{\code{handler_unpack_task}}{unpack a request and convert to a task}
+#' \item{\code{handler_query_task}}{obtain task status on the server}
+#' \item{\code{handler_validate_server}}{handles validation request}
+#' \item{\code{handler_validate_auth}}{a layer that handles authentication}
+#' }
+#' @param req,res web request/response variables (see \code{'plumber'} package)
+#' @param task a task instance
+#' @param userid which user submits the task
+#' @param status task status to filter/query; choices are \code{'valid'},
+#' \code{'init'} (submitted, waiting to run), \code{'running'} (running
+#' task), \code{'finish'} (finished task), and \code{'canceled'} (canceled
+#' by the server)
+#' @return \code{run_task} returns a named list with:
+#' \describe{
+#' \item{\code{task}}{task object created by internal \code{new_task} function}
+#' \item{\code{userid}}{a 32-character string of user's ID}
+#' \item{\code{future}}{a future object that schedules jobs asynchronously}.
+#' }
+#' \code{handler_unpack_task}, \code{handler_query_task} return task instances
+#' created by the internal \code{new_task} function. Others return lists or
+#' \code{res} that will be processed by the \code{'plumber'} package.
+#'
+#' @name restbench-handlers
+NULL
+
+#' @rdname restbench-handlers
 #' @export
 run_task <- function(task, userid){
 
@@ -49,15 +78,16 @@ run_task <- function(task, userid){
     cat("Sent: ", task$task_name, '\n')
   })
 
-  .globals$running[[task$task_name]] <- dipsaus::list_to_fastmap2(list(
+  list(
     task = task,
     userid = userid,
     future = f
-  ))
+  )
 
 
 }
 
+#' @rdname restbench-handlers
 #' @export
 handler_unpack_task <- function(req){
   # general flags
@@ -127,6 +157,7 @@ handler_unpack_task <- function(req){
 
 }
 
+#' @rdname restbench-handlers
 #' @export
 handler_query_task <- function(userid, status = 'valid'){
   tasks <- db_get_task(userid = userid, client = FALSE, status = status)
@@ -136,6 +167,7 @@ handler_query_task <- function(userid, status = 'valid'){
   tasks
 }
 
+#' @rdname restbench-handlers
 #' @export
 handler_validate_server <- function(req){
   userid <- request_authinfo(req, 'userid')
@@ -160,7 +192,7 @@ handler_validate_server <- function(req){
 
 }
 
-
+#' @rdname restbench-handlers
 #' @export
 handler_validate_auth <- function(req, res) {
 

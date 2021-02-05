@@ -1,4 +1,3 @@
-# TODO: inspect try catch
 
 get_ip <- function(get_public = NA, timeout = 3){
   ip <- list(
@@ -146,7 +145,8 @@ watch_tasks <- function(){
         if(is.null(item)){ return() }
         cat("Starting task:", item$task$task_name, '\n')
 
-        run_task(item$task, userid = item$userid)
+        res <- run_task(item$task, userid = item$userid)
+        .globals$running[[item$task$task_name]] <- dipsaus::list_to_fastmap2(res)
 
       })
     }
@@ -191,11 +191,14 @@ watch_later <- function(){
 }
 
 
-
+#' Generate a sample configuration file
+#' @param file file path or a connection to write the configurations to.
+#' @return None
 #' @export
 conf_sample <- function(file = stdout()){
   s <- readLines(system.file('default_settings.yaml', package = 'restbatch'))
   writeLines(s, file)
+  invisible()
   # yaml::write_yaml(list(
   #   modules = list(
   #     jobs = "{system.file(\"scheduler/jobs.R\", package = \"restbatch\")}",
@@ -397,6 +400,157 @@ findPort <- function (port, mustWork = NA) {
 }
 
 
+#' Server control functions
+#' @description Start, validate, stop a batch server
+#' @param host an 'IPv4' address where to run the server on; default see
+#' \code{\link{default_host}}
+#' @param port integer, which port the server runs at; default see
+#' \code{\link{default_port}}
+#' @param protocol 'http' or 'https'; default see
+#' \code{\link{default_protocol}}. 'https' needs extra server settings
+#' @param settings path to a server configuration file; a sample can be
+#' obtained via \code{\link{conf_sample}}; see details
+#' @param make_default whether to make the server default? If so, all tasks
+#' will be sent to this server by default.
+#' @param supervise whether to shutdown the server when current R session
+#' expires; default is \code{FALSE}
+#' @param auto_close same as \code{supervise}
+#' @param validate whether to check server is alive once created, default is
+#' \code{TRUE}; see details
+#' @param validate_sleep if validation is on, intervals to check alive
+#' @param validate_maxwait maximum waiting time in seconds to validate
+#' @param path,path_validate internally used
+#' @param ... pass to other methods
+#'
+#' @return \code{start_server} returns a list; \code{server_alive} returns
+#' whether the server can be connected; others return nothing.
+#'
+#' @details The function \code{ensure_server} is a combination of
+#' \code{start_server} and \code{server_alive}: it checks whether the target
+#' server is alive first before starting the server. If \code{validate} is true,
+#' then the it also wait util the server is completely up and ready to serve.
+#'
+#' \code{kill_server} stops the server as soon as possible. It sends signals to
+#' the server to cancel the unfinished tasks and shutdown.
+#' \code{autoclose_server} stops the server when the current R session exits.
+#'
+#' @section Server Configuration:
+#'
+#' A server configuration is a file that contains key-value pairs. They are
+#' used to tune your running servers on performance, security, and even
+#' customize some actions.
+#'
+#' A sample configuration file can be obtained via \code{\link{conf_sample}}
+#'
+#' Some values are characters. These characters will be parsed through
+#' \code{\link[glue]{glue}} function that evaluates dynamically. The adds
+#' more flexibility to your settings.
+#' For example, the default \code{startup_script} evaluates
+#' \code{system.file("scheduler/startup.R", package = "restbatch")} dynamically,
+#' and pass the results as your actual startup script.
+#'
+#' \describe{
+#' \item{startup_script}{path to the R script to run when starting up. For example,
+#' setting up pools, load extra settings etc.}
+#' \item{batch_cluster}{path to the R script defining cluster functions.
+#' See \code{\link[batchtools]{makeClusterFunctions}} on how to set up
+#' computational nodes.}
+#' \item{jobs,validate}{R \code{plumber} files to handle new job and
+#' validation requests}
+#' \item{debug}{yes or no to enable debug mode}
+#' \item{require_auth}{whether default authentication is on. The default
+#' authentication uses 'openssl' that sends tokens in the request headers.}
+#' \item{anonymous_request}{whether to allow default tokens; works for a quick
+#' set up scenarios like debugging, runing on local machines, but will
+#' introduce security issues is deployed on public addresses.}
+#' \item{modules_require_auth}{which modules require default authentications;
+#' use comma to seperate.}
+#' \item{request_timeout}{part of authentication system. When default
+#' authentications is on, each request header needs to include a timestamp
+#' and an encrypted token of that timestamp. The server will block the requests
+#' that are too old to avoid someone accidentally "steals" your previous tokens.
+#' The \code{request_timeout} defines the maximum time in seconds between
+#' the encrypted request time and the actual time when server handles requests}
+#' \item{max_concurrent_tasks}{maximum of running tasks allowed}
+#' \item{max_concurrent_jobs}{maximum of running jobs for each task}
+#' \item{max_release_tasks_per_second}{A loop will be created in the server to
+#' regularly check the task status (see \code{task_queue_interval}). The loop
+#' blocks the session. If there are multiple tasks finished, releasing them
+#' all might be time consuming, \code{max_release_tasks_per_second} controls
+#' the maximum number of tasks to be released each
+#' \code{task_queue_interval} seconds}
+#' \item{task_queue_interval}{intervals in seconds to check and update task
+#' status queued or running on the server}
+#' \item{task_root}{where to store the task files}
+#' \item{max_nodetime}{sometimes a task might run forever or get lost. It
+#' will still be in the running status. Set this number to indicate the max
+#' time in seconds a job should execute; default is 10 days.}
+#' \item{func_newjob}{function to handle new tasks}
+#' \item{func_validate_server}{function to validate the server}
+#' }
+#'
+#' @seealso \code{\link{conf_sample}},
+#' \code{\link[batchtools]{makeClusterFunctions}}, \code{\link[glue]{glue}}.
+#'
+#' @examples
+#'
+#' if(interactive()){
+#'
+#' # -------------------- Start a server tasks -----------------------
+#'
+#' # set default host, port to play with
+#' default_host("127.0.0.1")
+#' default_port(7033)
+#'
+#' # start a server
+#' start_server()
+#'
+#' server_alive()
+#'
+#' # alternatively, you can just call
+#' ensure_server()
+#'
+#' # -------------------- Run tasks -----------------------------------
+#'
+#' task <- new_task2(function(x){
+#'   if(x == 2){
+#'     stop("I stop no because.")
+#'   }
+#'   Sys.sleep(5)
+#'   Sys.getpid()
+#' }, x = 1:3)
+#'
+#' # Submit and run batch jobs
+#' task$submit()
+#'
+#' # Check
+#' task$server_status()
+#'
+#' # print task
+#' print(task)
+#'
+#' # obtain results
+#' task$collect()
+#'
+#' # get result details
+#' attributes(task$collect())
+#'
+#' # -------------------- An interactive shiny client -----------------
+#'
+#' source(system.file('dashboards/client/app.R', package = 'restbatch'))
+#'
+#' # -------------------- Stop the server ------------------------------
+#' kill_server()
+#'
+#' # clean up
+#' task$remove()
+#'
+#' }
+#'
+#' @name restbatch-server
+NULL
+
+#' @rdname restbatch-server
 #' @export
 server_alive <- function(port = default_port(), host = default_host(allow0 = FALSE),
                          protocol = default_protocol(), path = "validate/ping", ...){
@@ -432,6 +586,7 @@ server_alive <- function(port = default_port(), host = default_host(allow0 = FAL
 
 }
 
+#' @rdname restbatch-server
 #' @export
 kill_server <- function(host = default_host(allow0 = FALSE), port = default_port(),
                         protocol = default_protocol(), path = 'validate/shutdown'){
@@ -446,7 +601,7 @@ kill_server <- function(host = default_host(allow0 = FALSE), port = default_port
 
 
 
-
+#' @rdname restbatch-server
 #' @export
 start_server <- function(
   host = default_host(),
@@ -565,7 +720,8 @@ start_server <- function(
   invisible(.globals$servers[[host]][[port]])
 }
 
-
+#' @rdname restbatch-server
+#' @export
 autoclose_server <- function(host = default_host(), port = default_port(), auto_close = TRUE){
   # fastmap is a list so we cannot register finalizers
   # ensure supervised servers are correctly removed when R session exit
@@ -599,6 +755,7 @@ autoclose_server <- function(host = default_host(), port = default_port(), auto_
   })
 }
 
+#' @rdname restbatch-server
 #' @export
 ensure_server <- function(host = default_host(), port = default_port(),
                           protocol = default_protocol(), make_default = TRUE,

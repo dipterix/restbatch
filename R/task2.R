@@ -261,6 +261,14 @@ task__remove <- function(task, wait = 0.01){
   suppressMessages({
     batchtools::removeRegistry(wait = wait, reg = task$reg)
   })
+  if(dir.exists(task$task_dir)){
+    unlink(task$task_dir, recursive = TRUE)
+  }
+  try({
+    # de-register from the database
+    # The task will be marked as "removed"
+    db_update_task_client(task)
+  }, silent = TRUE)
 }
 task__zip <- function(task, target = tempfile(fileext = '.zip')){
   # zip the directory
@@ -519,6 +527,103 @@ make_client_task_proxy <- function(task){
   ret
 }
 
+#' Create/Restore a client-side task proxy
+#' @param fun,... function to apply and additional parameters to be
+#' passed to \code{\link[batchtools]{batchMap}} function
+#' @param task_name a readable name for the task; default is \code{'Noname'}.
+#' @return A locked proxy (environment) that wraps batch task with the following
+#' fields and methods.
+#'
+#' @section Fields:
+#' \describe{
+#' \item{\code{task_name}}{task ID, a combination of user ID, task readable
+#' name, and a 16-character random string}
+#' \item{\code{readable_name}}{a friendly name of the task}
+#' \item{\code{task_dir}}{task directory where the jobs are stored}
+#' \item{\code{task_root}}{root directory where all tasks are stored}
+#' \item{\code{reg}}{\code{'batchtools'} registry that reads batch job status}
+#' \item{\code{njobs}}{total number of jobs in the task}
+#' \item{\code{protocol}, \code{host}, \code{port}, \code{path_*}}{server
+#' to be submitted to, used by \code{'submit()'} method}
+#' \item{\code{submitted}}{whether the task has been submitted or not}
+#' \item{\code{submitted_to}}{if the task has been submitted, then where}
+#' \item{\code{results}}{the result of the task, should almost surely use
+#' \code{collect()} instead}
+#' \item{\code{collected}}{whether the results has been loaded from task
+#' directory into the memory}
+#' }
+#' @section Methods:
+#' \describe{
+#' \item{\code{submit}}{submit or re-submit a rask. If \code{'pack'} is true,
+#' then the task files will be archived before sending to the server. This
+#' option is required when server runs remotely.}
+#' \item{\code{resolved}}{check whether the task has been resolved, a
+#' combination of \code{server_status()} and \code{local_status()}. Will
+#' raise errors if server if not running}
+#' \item{\code{locally_resolved}}{check whether task is resolved locally without
+#' query the server. Only used to check local files. It's possible that
+#' server has finished but locally not resolved. See \code{download()} to
+#' synchronize local files with the finished tasks on the server}
+#' \item{\code{server_status}}{get task status from servers}
+#' \item{\code{local_status}}{get task status from servers}
+#' \item{\code{download}}{download the finished tasks from the server and
+#' overwrite the local files. Raises error if the task is not finished remotely.
+#' Always check server status before downloading.}
+#' \item{\code{collect}}{collect results. It checks the status both locally
+#' and remotely; download the task if finished; load up the results. This
+#' function will block the session waiting for results.}
+#' \item{\code{zip}}{create an archive that stores the task}
+#' \item{\code{clear_registry}}{clear the registry, usually used to re-use the
+#' task or to re-run the task}
+#' \item{\code{reload_registry}}{reload \code{'reg'} registry under read-only
+#' or writeable modes. If the task has been submitted, please load in
+#' read-only mode to avoid file corrects}
+#' \item{\code{remove}}{remove the whole task from the hard drive}
+#' }
+#'
+#' @examples
+#'
+#' task <- new_task2(function(...){
+#'   list(...)
+#' }, x = 1:3, y = 1:6)
+#'
+#' # Not submitted
+#' task
+#'
+#' # save task name to same other places
+#' task_name <- task$task_name
+#'
+#' # submit the task
+#' if(interactive()){
+#'
+#'   ensure_server()
+#'
+#'   task$submit()
+#'
+#'   task
+#'
+#'   # once finished
+#'   kill_server()
+#'
+#' }
+#'
+#' # Remove the task. You can always restore with task_name
+#'
+#' rm(task)
+#'
+#' task_restored <- restore_task2(task_name = task_name)
+#'
+#' if(task_restored$submitted && task_restored$resolved()){
+#'   task_restored$collect()
+#' }
+#'
+#' # clean up, remove all task files
+#' task_restored$remove()
+#'
+#' @name restbench-tasks
+NULL
+
+#' @rdname restbench-tasks
 #' @export
 new_task2 <- function(fun, ..., task_name = "Noname") {
   stopifnot(is.function(fun))
@@ -526,6 +631,7 @@ new_task2 <- function(fun, ..., task_name = "Noname") {
   make_client_task_proxy(task)
 }
 
+#' @rdname restbench-tasks
 #' @export
 restore_task2 <- function(task_name){
   task <- restore_task(task_name = task_name, userid = get_user(), .client = TRUE, .update_db = TRUE)

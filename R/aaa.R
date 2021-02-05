@@ -25,7 +25,11 @@ R_user_dir <- function (package, which = c("data", "config", "cache")) {
 }
 
 rand_string <- function(length = 50){
-  paste(sample(c(letters, LETTERS, 0:9), length, replace = TRUE), collapse = '')
+  # Must use completely randomized rad string such that set.seed won't work
+  ret <- as.character(openssl::aes_keygen(length = ceiling(length / 2)))
+  ret <- paste(ret, collapse = "")
+  ret <- stringr::str_sub(ret, end = length)
+  ret
 }
 
 stopifnot2 <- function(..., msg = 'Condition not satisfied'){

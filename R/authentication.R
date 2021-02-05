@@ -23,9 +23,12 @@ get_username <- function(){
   uname <- restbatch_getopt("username", default = NA)
   if(is.na(uname)){
     user <- Sys.getenv('USER')
+    user <- stringr::str_remove_all(user, '[^a-zA-Z0-9_]')
     rn <- sample(90000, 1)
     uname <- sprintf('%s-%d', user, rn)
     restbatch_setopt(key = "username", value = uname)
+  } else {
+    uname <- stringr::str_remove_all(uname, '[^a-zA-Z0-9_-]')
   }
   uname
 }
@@ -46,26 +49,27 @@ private_to_pubkey <- function(private_key){
 }
 private_key <- function(userid){
   uid <- get_user()
-  re <- list()
-  # Running as local service only get inbound request
-  if(getOption('restbatch.anonymous_request', TRUE) && isTRUE(userid == uid)){
-    re[[1]] <- get_fakekey(public = FALSE)
-  }
+  re <- list(get_fakekey(public = FALSE))
+
   # Find user key from database
   user_list <- db_getuser(userid, TRUE)
 
   ks <- lapply(user_list$private_key, function(k){
     openssl::read_key(openssl::bignum(k))
   })
-  unique(c(re, ks))
+
+  # Running as local service only get inbound request
+  if(getOption('restbatch.anonymous_request', TRUE) && isTRUE(userid == uid)){
+    # use fake key
+    unique(c(re, ks))
+  } else {
+    # remove fake key
+    ks[vapply(ks, function(k){ !identical(k, re[[1]]) }, FUN.VALUE = FALSE)]
+  }
 }
 public_key <- function(userid){
-  my_uname <- get_user()
-  re <- list()
-  # Running as local service only get inbound request
-  if(getOption('restbatch.anonymous_request', TRUE) && isTRUE(userid == my_uname)){
-    re[[1]] <- get_fakekey(public = TRUE)
-  }
+  my_id <- get_user()
+  re <- list(get_fakekey(public = TRUE))
   # Find user key from database
   user_list <- db_getuser(userid, TRUE)
 
@@ -73,7 +77,13 @@ public_key <- function(userid){
     openssl::read_pubkey(openssl::bignum(k))
   })
 
-  unique(c(re, ks))
+  # Running as local service only get inbound request
+  if(getOption('restbatch.anonymous_request', TRUE) && isTRUE(userid == my_id)){
+    unique(c(re, ks))
+  } else {
+    # remove fake key
+    ks[vapply(ks, function(k){ !identical(k, re[[1]]) }, FUN.VALUE = FALSE)]
+  }
 }
 
 random_key <- function(){

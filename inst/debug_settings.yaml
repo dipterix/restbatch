@@ -6,10 +6,10 @@ modules:
   validate: '{system.file("scheduler/validate.R", package = "restbatch")}'
 options:
   debug: yes
-  require_auth: no
   protocol: http
-  modules_require_auth: 'jobs, validate'
+  require_auth: no
   anonymous_request: no
+  modules_require_auth: 'jobs, validate'
   max_concurrent_tasks: 1
   max_concurrent_jobs: 4
   task_queue_interval: 1

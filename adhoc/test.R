@@ -40,10 +40,11 @@ task <- restbatch:::new_task2(function(x){
 # task$port <- 7034
 
 # res <- task$validate(); res
-res <- task$submit(pack = T, force = T); httr::content(res)
+res <- task$submit(); httr::content(res)
 
 # restbatch:::db_backup(T)
 # restbatch:::db_get_task(userid = restbatch:::get_user(), client = FALSE, status = 'all')
+# restbatch:::db_get_task(userid = 'e5f6226c9f2e6874dd3a7f0944b13dcb', client = FALSE, status = 'all')
 restbatch::list_tasks(status = 'all')
 restbatch::request_task_list()
 # task$..view()
