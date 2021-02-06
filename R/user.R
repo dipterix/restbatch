@@ -13,6 +13,7 @@ keygen <- function(){
 #' Give additional user server access
 #' @description See examples on how to give additional remote users access.
 #' @param userid user's ID
+#' @param role role of the user; choices as 'user' (deafult) and 'admin'
 #' @param password a secret code to encode/decode the private key. This is not
 #' the user's password. It is just some code that only is shared between the
 #' system admin and the target user. If \code{password} is not blank, then

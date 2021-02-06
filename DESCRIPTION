@@ -28,4 +28,8 @@ Imports:
     RSQLite,
     stringr,
     snow,
+    base64enc,
     fastmap (>= 1.1.0)
+Suggests: 
+    testthat (>= 3.0.0)
+Config/testthat/edition: 3

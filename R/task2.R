@@ -28,13 +28,13 @@ task__submit <- function(task, pack = NA, force = FALSE){
   }
 
   pack <- isTRUE(pack)
-  conf <- prepare_request()
-
-  conf$path <- task$task_dir
-  conf$task_name <- task$task_name
-  conf$standalone <- pack
-  conf <- as.list(conf)
-  names(conf) <- sprintf("restbatch.%s", names(conf))
+  # conf <- prepare_request()
+  #
+  # conf$path <- task$task_dir
+  # conf$task_name <- task$task_name
+  # conf$standalone <- pack
+  # conf <- as.list(conf)
+  # names(conf) <- sprintf("restbatch.%s", names(conf))
 
   if(pack) {
     encode <- 'multipart'
@@ -44,12 +44,20 @@ task__submit <- function(task, pack = NA, force = FALSE){
     body <- NULL
   }
 
-  res <- httr::POST(
-    url = sprintf("%s://%s:%d/%s", task$protocol, task$host, task$port, task$path_submit),
-    config = do.call(httr::add_headers, conf),
-    encode = encode,
-    body = body
+  res <- request_server(
+    host = task$host, port = task$port, protocol = task$protocol, path = task$path_submit,
+    header = list(
+      path = task$task_dir,
+      task_name = task$task_name,
+      standalone = pack
+    ), encode = encode, body = body
   )
+  # res <- httr::POST(
+  #   url = sprintf("%s://%s:%d/%s", task$protocol, task$host, task$port, task$path_submit),
+  #   config = do.call(httr::add_headers, conf),
+  #   encode = encode,
+  #   body = body
+  # )
   # httr::has_content(res)
   # httr::content(res)
   res
@@ -117,8 +125,10 @@ task__server_status <- function(task){
     warning("Task has not been submitted to the server. Please run task$submit() first.")
     return(status)
   }
-  url <- sprintf("%s://%s:%d/%s", task$protocol, task$submitted_to$host, task$submitted_to$port, task$path_status)
-  res <- request_server(url, body = list(task_name = task$task_name))
+  # url <- sprintf("%s://%s:%d/%s", task$protocol, task$submitted_to$host, task$submitted_to$port, task$path_status)
+  res <- request_server(path = task$path_status, host = task$submitted_to$host,
+                        port = task$submitted_to$port, protocol = task$protocol,
+                        body = list(task_name = task$task_name))
 
   if(res$status_code == 200){
     content <- httr::content(res)
@@ -289,8 +299,10 @@ task__download <- function(task, target, force = FALSE){
     return(FALSE)
   }
 
-  url <- sprintf('%s://%s:%d/%s', task$protocol, task$host, task$port, task$path_download)
-  res <- request_server(url, list(task_name=task$task_name, force=force))
+  # url <- sprintf('%s://%s:%d/%s', task$protocol, task$host, task$port, task$path_download)
+  res <- request_server(path = task$path_download, host = task$host,
+                        port = task$port, protocol = task$protocol,
+                        list(task_name=task$task_name, force=force))
   if(res$status_code == 418){
     err <- httr::content(res)
     stop(simpleError(err$error[[1]], call = NULL))
@@ -367,7 +379,7 @@ new_task_internal <- function(task_root, task_dir, task_name, reg){
     collect = function(){ task__collect(task) },
     locally_resolved = function(){ task__locally_resolved(task) },
     zip = function(target = tempfile(fileext = '.zip')){ task__zip(task, target) },
-    download = function(target){ task__download(task, target, force = FALSE) },
+    download = function(target, force = FALSE){ task__download(task, target, force = FALSE) },
 
     # debug
     ..view = function(){

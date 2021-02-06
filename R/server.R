@@ -563,20 +563,36 @@ server_alive <- function(port = default_port(), host = default_host(allow0 = FAL
   valid <- FALSE
   tryCatch({
     res <- request_server(
-      sprintf('%s://%s:%d/%s', protocol, host, port, path),
+      # sprintf('%s://%s:%d/%s', protocol, host, port, path),
+      path = path, host = host,
+      port = port, protocol = protocol,
       body = NULL, method = 'POST', encode = 'json'
     )
 
-    uid <- get_user()
-    req_token <- res$request$headers['restbatch.tokens']
-    token <- httr::content(res)[['token']][[1]]
-    keys <- private_key(uid)
-    for(key in keys){
-      valid <- validate_string(uid, token, req_token)
-      if(valid){
-        break
-      }
+    # get auth info
+    ans <- httr::content(res)
+
+    if(isFALSE(ans$auth_enabled[[1]])){
+      # auth disabled
+      valid <- TRUE
+    } else {
+
+      # check the token
+      token <- ans$token
+
+      client_md5 <- token$client_md5[[1]]
+
+      my_keys <- private_key(get_user())
+      key <- my_keys[vapply(my_keys, function(key){ as.character(key$pubkey$fingerprint) %in% client_md5 }, FALSE)][[1]]
+
+      valid <- openssl::signature_verify(
+        data = charToRaw(token$client_answer[[1]]),
+        hash = openssl::sha256,
+        sig = as.raw(openssl::bignum(token$server_answer[[1]])),
+        pubkey = key
+      )
     }
+
     attr(valid, "response") <- res
   }, error = function(e){
     attr(valid, "error") <- e
@@ -593,12 +609,15 @@ kill_server <- function(host = default_host(allow0 = FALSE), port = default_port
   if(host == '0.0.0.0'){
     host <- '127.0.0.1'
   }
-  res <- request_server(sprintf('%s://%s:%d/%s', protocol, host, port, path))
+  res <- request_server(
+    path = path, host = host,
+    port = port, protocol = protocol
+    # sprintf('%s://%s:%d/%s', protocol, host, port, path)
+  )
   ret <- httr::content(res)
   attr(ret, 'response') <- res
   ret
 }
-
 
 
 #' @rdname restbatch-server

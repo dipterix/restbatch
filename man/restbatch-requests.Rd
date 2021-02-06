@@ -7,7 +7,10 @@
 \title{Send requests to the server to query the server status or task status}
 \usage{
 request_server(
-  url,
+  path,
+  host = default_host(),
+  port = default_port(),
+  protocol = default_protocol(),
   body = list(),
   header = list(),
   method = c("POST", "GET"),
@@ -23,7 +26,8 @@ request_task_list(
 )
 }
 \arguments{
-\item{url, protocol, host, port}{server location-related configurations}
+\item{protocol, host, port, path}{server location-related configurations, the
+'url' of request will be \code{protocol://host:port/path}}
 
 \item{body}{a list of request body}
 
@@ -34,8 +38,6 @@ request_task_list(
 \item{encode}{serialization method to encode request body}
 
 \item{task_status}{task status to filter}
-
-\item{path}{route path to send requests to}
 }
 \value{
 \code{'httr'} response. You can use \code{\link[httr]{content}} to

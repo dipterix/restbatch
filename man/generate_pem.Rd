@@ -18,6 +18,8 @@ generate_pem(
 \arguments{
 \item{userid}{user's ID}
 
+\item{role}{role of the user; choices as 'user' (deafult) and 'admin'}
+
 \item{password}{a secret code to encode/decode the private key. This is not
 the user's password. It is just some code that only is shared between the
 system admin and the target user. If \code{password} is not blank, then
