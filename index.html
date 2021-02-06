@@ -126,7 +126,7 @@
 <div class="sourceCode" id="cb4"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span class="va">task</span><span class="op">$</span><span class="fu">submit</span><span class="op">(</span><span class="op">)</span>
 
-<span class="co">#&gt; Response [http://127.0.0.1:7033/jobs/new]</span>
+<span class="co">#&gt; Response [http://127.0.0.1:7033/task/new]</span>
 <span class="co">#&gt; Date: 2021-02-04 11:04</span>
 <span class="co">#&gt; Status: 200</span>
 <span class="co">#&gt; Content-Type: application/json</span>
@@ -166,28 +166,32 @@ Status for 10 jobs at 2021-02-04 05:04:55:
 <p>Kill the server right now</p>
 <div class="sourceCode" id="cb9"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span class="fu"><a href="reference/restbatch-server.html">kill_server</a></span><span class="op">(</span>host <span class="op">=</span> <span class="st">"127.0.0.1"</span>, port <span class="op">=</span> <span class="fl">7033</span><span class="op">)</span></code></pre></div>
-<p>All unfinished tasks will be marked as <code>canceled</code> immediately. You need to submit the task again to resume them (see section 2.5 below).</p>
+<p>All unfinished tasks will be marked as <code>cancelled</code> immediately. You need to submit the task again to resume them (see section 2.5 below).</p>
 <p>If you have previously set the default <code>host</code> and <code>port</code>, simply call <code><a href="reference/restbatch-server.html">kill_server()</a></code></p>
 <p>To kill the server once your current R session is closed,</p>
 <div class="sourceCode" id="cb10"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span class="fu"><a href="reference/restbatch-server.html">autoclose_server</a></span><span class="op">(</span>host <span class="op">=</span> <span class="st">"127.0.0.1"</span>, port <span class="op">=</span> <span class="fl">7033</span>, auto_close <span class="op">=</span> <span class="cn">TRUE</span><span class="op">)</span></code></pre></div>
 </div>
-<div id="24-client-task-viewer" class="section level3">
+<div id="24-monitor-tasks" class="section level3">
 <h3 class="hasAnchor">
-<a href="#24-client-task-viewer" class="anchor"></a>2.4 Client task viewer</h3>
+<a href="#24-monitor-tasks" class="anchor"></a>2.4 Monitor task(s)</h3>
 <p>An interactive client viewer is available using R <code>shiny</code> package. This viewer can be enabled via</p>
 <div class="sourceCode" id="cb11"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span class="co"># Install shinydashboard if you haven't done so</span>
-<span class="co"># install.packages(c("shinydashboard"))</span>
+<span class="co"># install.packages("shinydashboard")</span>
 
 <span class="kw"><a href="https://rdrr.io/r/base/source.html">source</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/system.file.html">system.file</a></span><span class="op">(</span><span class="st">'dashboards/client/app.R'</span>, package <span class="op">=</span> <span class="st">'restbatch'</span><span class="op">)</span><span class="op">)</span></code></pre></div>
 <p><img src="https://user-images.githubusercontent.com/8163576/106888900-d6dabe80-66ac-11eb-8c1f-27716a3a7112.png" width="50%"></p>
+<p>Alternatively, <code>task$monitor()</code> function integrates RStudio, creating job panels in via package <code>rstudioapi</code>.</p>
+<div class="sourceCode" id="cb12"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span class="co"># install.packages("rstudioapi")</span>
+<span class="va">task</span><span class="op">$</span><span class="fu">monitor</span><span class="op">(</span><span class="op">)</span></code></pre></div>
 </div>
 <div id="25-resume-a-task" class="section level3">
 <h3 class="hasAnchor">
 <a href="#25-resume-a-task" class="anchor"></a>2.5 Resume a task</h3>
-<p>If a server is killed, all unfinished tasks will be canceled. The tasks can be resumed without re-run everything. This requires to submit with flag <code>pack=FALSE</code> and <code>force=TRUE</code>:</p>
-<div class="sourceCode" id="cb12"><pre class="downlit sourceCode r">
+<p>If a server is killed, all unfinished tasks will be cancelled. The tasks can be resumed without re-run everything. This requires to submit with flag <code>pack=FALSE</code> and <code>force=TRUE</code>:</p>
+<div class="sourceCode" id="cb13"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span class="va">task</span><span class="op">$</span><span class="fu">submit</span><span class="op">(</span>pack<span class="op">=</span><span class="cn">FALSE</span>, force<span class="op">=</span><span class="cn">TRUE</span><span class="op">)</span></code></pre></div>
 </div>
 </div>
