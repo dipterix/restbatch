@@ -89,7 +89,8 @@ run_task <- function(task, userid){
   settings <- getOption("restbatch.settings")
 
   f <- future::future({
-    load_server_settings(settings)
+    ..ns <- asNamespace("restbatch")
+    ..ns$load_server_settings(settings)
 
     # Override cluster functions here (inside of future)
     # workers <- getOption('restbatch.max_concurrent_jobs', 1L)
@@ -106,7 +107,7 @@ run_task <- function(task, userid){
     batchtools::waitForJobs(reg = reg)
 
     cat("Sent: ", task$task_name, '\n')
-  })
+  }, packages = c("restbatch"))
 
   list(
     task = task,

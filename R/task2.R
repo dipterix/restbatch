@@ -269,6 +269,26 @@ task__collect <- function(task){
   ret
 }
 
+task__local_results <- function(task){
+  s <- task$locally_resolved()
+  if(!s){
+    stop("Task not ready to pick up.")
+  }
+  # collect
+  tbl <- batchtools::getJobTable(reg = task$reg)
+
+  ret <- lapply(seq_len(nrow(tbl)), function(ii){
+    if(!is.na(tbl$error[[ii]]) && is.character(tbl$error[[ii]])){
+      return(simpleError(message = tbl$error[[ii]], call = NULL))
+    } else {
+      job_id <- tbl$job.id[[ii]]
+      batchtools::loadResult(job_id, reg = task$reg)
+    }
+  })
+
+  ret
+}
+
 task__clear_registry <- function(task){
   task$reload_registry(writeable = TRUE)
   batchtools::clearRegistry(task$reg)
@@ -386,7 +406,7 @@ task__monitor_rstudio <- function(task, update_freq = 1, ...){
         submitted <<- TRUE
         rstudioapi::jobAddOutput(job = job, output = sprintf("Jobs submitted to: %s:%s\n", task$submitted_to$host, task$submitted_to$port))
         rstudioapi::jobAddOutput(job = job, output = sprintf(
-          "\nYou can obtain the task details from: \n\t%s://%s:%s/info?task_name=%s\n",
+          "\nYou can download the task results once it's finished: \n\t%s://%s:%s/info/results?task_name=%s\n",
           task$protocol, task$submitted_to$host, task$submitted_to$port, task$task_name))
         rstudioapi::jobAddOutput(job = job, output = "\nStart listening to the server report...\n")
       } else if(task$submitted) {
@@ -603,6 +623,9 @@ new_task_internal <- function(task_root, task_dir, task_name, reg){
     # debug
     ..view = function(){
       system(sprintf("open \"%s\"", task$task_dir))
+    },
+    ..local_results = function(){
+      task__local_results(task)
     }
   ))
 

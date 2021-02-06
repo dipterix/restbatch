@@ -4,6 +4,7 @@ server_scripts:
 modules:
   task: '{system.file("scheduler/task.R", package = "restbatch")}'
   validate: '{system.file("scheduler/validate.R", package = "restbatch")}'
+  info: '{system.file("scheduler/info.R", package = "restbatch")}'
 options:
   debug: no
   protocol: http

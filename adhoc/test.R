@@ -38,7 +38,7 @@ task <- restbatch:::new_task2(function(x){
 # task$status()->s; s
 # task$collect()
 # task$host <- "10.0.0.132"
-# task$port <- 7034
+task$port <- 7034
 
 # res <- task$validate(); res
 res <- task$submit(); httr::content(res)
