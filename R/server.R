@@ -12,8 +12,15 @@ get_ip <- function(get_public = NA, timeout = 3){
         s <- stringr::str_extract(s, "IPv4 Address.*[0-9]{1,3}\\.[0-9]{1,3}\\.[0-9]{1,3}\\.[0-9]{1,3}.*")
         s <- s[!is.na(s)]
         stringr::str_extract(s, '[0-9]{1,3}\\.[0-9]{1,3}\\.[0-9]{1,3}\\.[0-9]{1,3}')
-      }, {
+      },
+      'darwin' = {
         s <- system("ifconfig 2>&1", intern = TRUE)
+        s <- stringr::str_extract(s, "inet.*[0-9]{1,3}\\.[0-9]{1,3}\\.[0-9]{1,3}\\.[0-9]{1,3}")
+        s <- s[!is.na(s)]
+        # extract the first one as the second is mask
+        stringr::str_extract(s, '[0-9]{1,3}\\.[0-9]{1,3}\\.[0-9]{1,3}\\.[0-9]{1,3}')
+      }, {
+        s <- system("ip addr", intern = TRUE)
         s <- stringr::str_extract(s, "inet.*[0-9]{1,3}\\.[0-9]{1,3}\\.[0-9]{1,3}\\.[0-9]{1,3}")
         s <- s[!is.na(s)]
         # extract the first one as the second is mask
@@ -21,20 +28,21 @@ get_ip <- function(get_public = NA, timeout = 3){
       }
     )
     ip$available <- c(ip$available, s[!is.na(s)])
+  }, silent = TRUE)
 
-    # also use ipify
-    if(isTRUE(get_public)){
-      ip$public <- getOption("restbench.public_ip", try({
-        res <- httr::GET("https://api.ipify.org?format=json", httr::timeout(timeout))
-        res <- httr::content(res, encoding = 'UTF-8')
-        s <- res$ip
-        s <- stringr::str_extract(s, "[0-9]{1,3}\\.[0-9]{1,3}\\.[0-9]{1,3}\\.[0-9]{1,3}")
-        s <- s[!is.na(s)]
-        options("restbench.public_ip" = s)
-        s
-      }, silent = TRUE))
-    }
-  })
+  # also use ipify
+  if(isTRUE(get_public)){
+    ip$public <- getOption("restbench.public_ip", try({
+      res <- httr::GET("https://api.ipify.org?format=json", httr::timeout(timeout))
+      res <- httr::content(res, encoding = 'UTF-8')
+      s <- res$ip
+      s <- stringr::str_extract(s, "[0-9]{1,3}\\.[0-9]{1,3}\\.[0-9]{1,3}\\.[0-9]{1,3}")
+      s <- s[!is.na(s)]
+      options("restbench.public_ip" = s)
+      s
+    }, silent = TRUE))
+  }
+
   ip$available <- unique(ip$available)
   ip
 }
