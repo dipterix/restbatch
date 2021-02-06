@@ -74,6 +74,17 @@ db_validate <- function(conn){
 
 }
 
+#' Fix or restore database
+#' @description These functions must run interactively.
+#' @param bkup path to the backup folder, should contains \code{'DB/restbatch.sqlite'}
+#' @param backup_current whether to backup current one before restoring
+#' @param tables which table(s) to restore
+#' @param owner_key whether to keep the old owner key; default is \code{'drop_old'}
+#' @return None
+#' @name restbatch-db
+NULL
+
+#' @rdname restbatch-db
 #' @export
 database_fix <- function(){
   if(!interactive()){
@@ -114,6 +125,7 @@ database_fix <- function(){
   }
 }
 
+#' @rdname restbatch-db
 #' @export
 database_restore <- function(bkup, backup_current = TRUE, tables = c('user', 'client-task', 'server-task'),
                              owner_key = c('drop_old', 'keep_both')){

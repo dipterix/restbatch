@@ -1,4 +1,8 @@
-# R package `restbatch` - A small RESTful framework to run batch jobs in the background
+# A small RESTful framework to run batch R scripts in the background
+
+<!-- badges: start -->
+  [![R-CMD-check](https://github.com/dipterix/restbench/workflows/R-CMD-check/badge.svg)](https://github.com/dipterix/restbench/actions)
+<!-- badges: end -->
 
 > This package is still under development. A road map will be built on Github soon.
 

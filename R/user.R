@@ -62,6 +62,10 @@ keygen <- function(){
 #'
 #' add_pem(pem$pem_file, pem$password, username = 'Alice')
 #'
+#' @name restbatch-user
+NULL
+
+#' @rdname restbatch-user
 #' @export
 generate_pem <- function(userid, role = c("user", "admin"), password = rand_string(8), username = "Unknown",
                          pem_file = tempfile(), dry_run = FALSE, overwrite = FALSE, force = FALSE){
@@ -95,15 +99,16 @@ generate_pem <- function(userid, role = c("user", "admin"), password = rand_stri
   ))
 }
 
+#' @rdname restbatch-user
 #' @export
 my_userid <- function(){
   get_user()
 }
 
+#' @rdname restbatch-user
 #' @export
-add_pem <- function(pem_file, password = '', username = get_username(),
-                    multiple_keys = c("keep_both", "stop", "replace")) {
-  multiple_keys <- match.arg(multiple_keys)
+add_pem <- function(pem_file, password = '', username = get_username()) {
+  multiple_keys <- 'keep_both'
   key <- openssl::read_key(pem_file, password)
   private_key <- as.character(openssl::bignum(key))
   userid <- get_user()
