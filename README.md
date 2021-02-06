@@ -138,18 +138,25 @@ To kill the server once your current R session is closed,
 autoclose_server(host = "127.0.0.1", port = 7033, auto_close = TRUE)
 ```
 
-### 2.4 Client task viewer
+### 2.4 Monitor task(s)
 
 An interactive client viewer is available using R `shiny` package. This viewer can be enabled via
 
 ```r
 # Install shinydashboard if you haven't done so
-# install.packages(c("shinydashboard"))
+# install.packages("shinydashboard")
 
 source(system.file('dashboards/client/app.R', package = 'restbatch'))
 ```
 
 <img src="https://user-images.githubusercontent.com/8163576/106888900-d6dabe80-66ac-11eb-8c1f-27716a3a7112.png" width="50%">
+
+Alternatively, `task$monitor()` function integrates RStudio, creating job panels in via package `rstudioapi`.
+
+```r
+# install.packages("rstudioapi")
+task$monitor()
+```
 
 ### 2.5 Resume a task
 

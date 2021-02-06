@@ -274,17 +274,22 @@ task__clear_registry <- function(task){
   batchtools::clearRegistry(task$reg)
 }
 task__remove <- function(task, wait = 0.01){
-  task$reload_registry(writeable = TRUE)
-  suppressMessages({
-    batchtools::removeRegistry(wait = wait, reg = task$reg)
-  })
   if(dir.exists(task$task_dir)){
+    task$reload_registry(writeable = TRUE)
+    suppressMessages({
+      batchtools::removeRegistry(wait = wait, reg = task$reg)
+    })
     unlink(task$task_dir, recursive = TRUE)
   }
   try({
     # de-register from the database
     # The task will be marked as "removed"
     db_update_task_client(task)
+  }, silent = TRUE)
+
+  try({
+    request_server(path = 'task/remove', host = task$submitted_to$host,
+                   port = task$submitted_to$port, protocol = task$protocol)
   }, silent = TRUE)
 }
 task__zip <- function(task, target = tempfile(fileext = '.zip')){

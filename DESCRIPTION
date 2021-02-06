@@ -31,5 +31,8 @@ Imports:
     base64enc,
     fastmap (>= 1.1.0)
 Suggests: 
-    testthat (>= 3.0.0)
+    testthat (>= 3.0.0),
+    rstudioapi (>= 0.13),
+    shiny,
+    shinydashboard
 Config/testthat/edition: 3

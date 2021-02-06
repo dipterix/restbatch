@@ -126,4 +126,27 @@ function(req, res){
   }, res = res, debug = debug)
 }
 
+#* @post /remove
+function(req, res){
+  if(debug){ assign('req', req, envir = globalenv())}
+
+  safe_run({
+    ns <- asNamespace('restbatch')
+
+    userid <- ns$clean_db_entry(req$HEADERS[["restbatch.userid"]], msg = '[1] Invalid user ID')
+    task_name <- ns$clean_db_entry(req$body$task_name, disallow = '[^a-zA-Z0-9-_]', msg = '[5] Invalid task name')
+    task <- ns$restore_task(task_name = task_name, userid = userid, .client = FALSE, .update_db = TRUE)
+
+    # This might cause batchtools to hang?
+    if(!is.null(task)){
+      if(dir.exists(task$task_dir)){
+        unlink(task$task_dir, recursive = TRUE)
+      }
+      try({
+        db_update_task_server2(task, userid = userid)
+      }, silent = TRUE)
+    }
+
+  }, res = res, debug = debug)
+}
 
