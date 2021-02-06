@@ -673,7 +673,7 @@ start_server <- function(
   if(!alive){
 
     # load the yaml file in case there are errors
-    load_yaml(settings)
+    settings_list <- load_yaml(settings)
 
     # check existing ports
     dir_create2(server_dir)
@@ -697,17 +697,23 @@ start_server <- function(
     } else {
       # server_dir <- "/Users/beauchamplab/Library/Caches/org.R-project.R/R/restbatch/servers/7033"
       # host = '127.0.0.1'
-      # port = 7033
+      # port = 7034
       # settings = system.file("default_settings.yaml", package = 'restbatch')
       # protocol = 'http'
 
       start_script <- file.path(server_dir, "restbatch.start.sh")
-      file.copy(system.file('bin/start_server.sh', package = 'restbatch'), start_script, overwrite = TRUE)
+      file.copy(system.file('bin/start_server.sh', package = 'restbatch'),
+                file.path(server_dir, "restbatch.start.sh"), overwrite = TRUE)
+      file.copy(system.file('bin/start_server.R', package = 'restbatch'),
+                file.path(server_dir, "start_server.R"), overwrite = TRUE)
+      settings_list$host <- host
+      settings_list$port <- port
+      settings_list$protocol <- protocol
+      save_yaml(settings_list, file.path(server_dir, "settings.yaml"))
+
       Sys.chmod(start_script, mode = "0777", use_umask = FALSE)
-      system2(start_script , c(
-        shQuote(settings), shQuote(port), shQuote(host),
-        shQuote(protocol), shQuote(R.home('R'))
-      ), stdout = FALSE, stderr = FALSE, wait = FALSE)
+      system2(start_script , sprintf('"%s"', R.home('R')), stdout = FALSE,
+              stderr = FALSE, wait = FALSE)
       # writeLines(sprintf('tempdir(check = TRUE)\nrestbatch:::start_server_internal(host=\'%s\',port=%s,settings=\'%s\')',
       #                    host, port, settings), start_script)
       #
