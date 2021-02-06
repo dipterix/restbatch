@@ -149,7 +149,7 @@ request_server <- function(
 #' @rdname restbatch-requests
 #' @export
 request_task_list <- function(task_status = 'valid', host = default_host(allow0 = FALSE),
-                              port = default_port(), protocol = default_protocol(), path = 'jobs/list'){
+                              port = default_port(), protocol = default_protocol(), path = 'task/list'){
   # url <- sprintf('%s://%s:%d/%s', protocol, host, port, path)
   res <- request_server(path = path, host = host,
                         port = port, protocol = protocol,
@@ -162,7 +162,7 @@ request_task_list <- function(task_status = 'valid', host = default_host(allow0 
 
   res <- data.frame(
     name = as.character(content$name),
-    status = as.character(factor(content$status, levels = c(0,1,2,-1), labels = c("init", "running", "finish", "canceled"))),
+    status = as.character(factor(content$status, levels = c(0,1,2,-1), labels = c("init", "running", "finish", "cancelled"))),
     error = as.logical(content$error),
     packed = as.logical(content$packed),
     time_added = as.POSIXct(content$time_added, origin="1970-01-01"),

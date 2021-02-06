@@ -22,7 +22,7 @@ request_task_list(
   host = default_host(allow0 = FALSE),
   port = default_port(),
   protocol = default_protocol(),
-  path = "jobs/list"
+  path = "task/list"
 )
 }
 \arguments{

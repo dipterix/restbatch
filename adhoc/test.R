@@ -38,7 +38,7 @@ task <- restbatch:::new_task2(function(x){
 # task$status()->s; s
 # task$collect()
 # task$host <- "10.0.0.132"
-task$port <- 7034
+# task$port <- 7034
 
 # res <- task$validate(); res
 res <- task$submit(); httr::content(res)
@@ -58,7 +58,7 @@ task$task_name
 
 # task$remove()
 
-res <- request_server('http://127.0.0.1:7033/jobs/status', body = list(task_name = '64d5010ac8f40ebd109b31817f2ccb04__noname__eODgK1F4aToedcFG'))
+res <- request_server('http://127.0.0.1:7033/task/status', body = list(task_name = '64d5010ac8f40ebd109b31817f2ccb04__noname__eODgK1F4aToedcFG'))
 httr::content(res)
 
 task$server_status()

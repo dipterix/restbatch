@@ -2,14 +2,14 @@ server_scripts:
   startup_script: '{system.file("scheduler/startup.R", package = "restbatch")}'
   batch_cluster: '{system.file("scheduler/cluster.R", package = "restbatch")}'
 modules:
-  jobs: '{system.file("scheduler/jobs.R", package = "restbatch")}'
+  task: '{system.file("scheduler/task.R", package = "restbatch")}'
   validate: '{system.file("scheduler/validate.R", package = "restbatch")}'
 options:
   debug: yes
   protocol: http
   require_auth: no
   anonymous_request: no
-  modules_require_auth: 'jobs, validate'
+  modules_require_auth: 'task, validate'
   max_concurrent_tasks: 1
   max_concurrent_jobs: 4
   task_queue_interval: 1

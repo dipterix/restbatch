@@ -14,7 +14,7 @@ safe_run <- function(expr, res, debug = FALSE){
 }
 
 
-#* Create new jobs with shared data directory
+#* Create a new task with shared data directory
 #* @serializer json
 #* @post /new
 function(req, res) {
@@ -42,7 +42,7 @@ function(req, res){
   safe_run({
     userid <- req$HEADERS[["restbatch.userid"]]
     status <- req$body$status
-    stopifnot(isTRUE(status %in% c("running", "init", "finish", "valid", "all", "canceled")))
+    stopifnot(isTRUE(status %in% c("running", "init", "finish", "valid", "all", "cancelled")))
 
     tbl <- restbatch::handler_query_task(userid, status = status)
     tbl
@@ -50,7 +50,7 @@ function(req, res){
 
 }
 
-#* @serializer json
+#* @serializer unboxedJSON
 #* @post /status
 function(req, res){
   if(debug){ assign('req', req, envir = globalenv())}
@@ -77,6 +77,21 @@ function(req, res){
     tbl$clientip <- NULL
     tbl$ncpu <- NULL
     tbl$userid <- NULL
+    if(nrow(tbl)){
+      tbl <- as.list(tbl[1,])
+    } else {
+      tbl <- as.list(tbl)
+    }
+
+
+    # add local information
+    task <- ns$restore_task(task_name = task_name)
+    s <- task$local_status()
+    tbl$n_total <- task$njobs
+    tbl$n_started <- s$started
+    tbl$n_done <- s$done
+    tbl$n_error <- s$error
+
     tbl
   }, res = res, debug = debug)
 }

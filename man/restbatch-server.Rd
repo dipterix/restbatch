@@ -123,7 +123,7 @@ setting up pools, load extra settings etc.}
 \item{batch_cluster}{path to the R script defining cluster functions.
 See \code{\link[batchtools]{makeClusterFunctions}} on how to set up
 computational nodes.}
-\item{jobs,validate}{R \code{plumber} files to handle new job and
+\item{task,validate}{R \code{plumber} files to handle new job and
 validation requests}
 \item{debug}{yes or no to enable debug mode}
 \item{require_auth}{whether default authentication is on. The default

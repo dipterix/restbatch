@@ -28,7 +28,7 @@ handler_validate_auth(req, res)
 
 \item{status}{task status to filter/query; choices are \code{'valid'},
 \code{'init'} (submitted, waiting to run), \code{'running'} (running
-task), \code{'finish'} (finished task), and \code{'canceled'} (canceled
+task), \code{'finish'} (finished task), and \code{'cancelled'} (cancelled
 by the server)}
 }
 \value{

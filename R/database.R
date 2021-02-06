@@ -351,7 +351,7 @@ db_getuser <- function(userid, unique = FALSE){
   existing_user
 }
 
-db_get_task <- function(task_name, userid, client = TRUE, status = c("running", "init", "finish", "canceled", "valid", "all"),
+db_get_task <- function(task_name, userid, client = TRUE, status = c("running", "init", "finish", "cancelled", "valid", "all"),
                         order = FALSE, expire = 0){
 
   if(missing(userid) && client){
@@ -393,8 +393,8 @@ db_get_task <- function(task_name, userid, client = TRUE, status = c("running", 
       'finish' = {
         'AND submitted=1 AND collected=1 AND removed=0'
       },
-      "canceled" = {
-        stop("Only server can get tasks that canceled.")
+      "cancelled" = {
+        stop("Only server can get tasks that cancelled.")
       },
       'valid' = {
         'AND removed=0'
@@ -433,7 +433,7 @@ db_get_task <- function(task_name, userid, client = TRUE, status = c("running", 
       'finish' = {
         'AND status=2 AND removed=0'
       },
-      'canceled' = {
+      'cancelled' = {
         'AND status="-1" AND removed=0'
       },
       'valid' = {
@@ -602,7 +602,7 @@ db_update_task_server <- function(task, req){
 #' Query and list all your submitted tasks
 #' @param status filter task status on the server, choices are \code{'valid'},
 #' \code{'init'} (submitted, waiting to run), \code{'running'} (running
-#' task), \code{'finish'} (finished task), and \code{'canceled'} (canceled
+#' task), \code{'finish'} (finished task), and \code{'cancelled'} (cancelled
 #' by the server)
 #' @param order whether to order by date submitted (in descending order);
 #' default is false

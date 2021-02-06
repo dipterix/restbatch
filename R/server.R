@@ -201,13 +201,13 @@ conf_sample <- function(file = stdout()){
   invisible()
   # yaml::write_yaml(list(
   #   modules = list(
-  #     jobs = "{system.file(\"scheduler/jobs.R\", package = \"restbatch\")}",
+  #     task = "{system.file(\"scheduler/task.R\", package = \"restbatch\")}",
   #     validate = "{system.file(\"scheduler/validate.R\", package = \"restbatch\")}"
   #   ),
   #   options = list(
   #     debug = FALSE,
   #     require_auth = TRUE,
-  #     modules_require_auth = "jobs, validate",
+  #     modules_require_auth = "task, validate",
   #     request_timeout = Inf,
   #     task_root = "{restbatch::restbatch_getopt(\"task_root\")}",
   #     max_nodetime = 864000L,
@@ -300,7 +300,7 @@ start_server_internal <- function(
     dereg_tasks <- c(ready_tasks, running_tasks)
 
     if(length(dereg_tasks)){
-      # There are running jobs, stop them (set their status to "canceled")
+      # There are running jobs, stop them (set their status to "cancelled")
       conn <- db_ensure(close = FALSE)
 
       for(item in dereg_tasks){
@@ -455,7 +455,7 @@ findPort <- function (port, mustWork = NA) {
 #' \item{batch_cluster}{path to the R script defining cluster functions.
 #' See \code{\link[batchtools]{makeClusterFunctions}} on how to set up
 #' computational nodes.}
-#' \item{jobs,validate}{R \code{plumber} files to handle new job and
+#' \item{task,validate}{R \code{plumber} files to handle new job and
 #' validation requests}
 #' \item{debug}{yes or no to enable debug mode}
 #' \item{require_auth}{whether default authentication is on. The default

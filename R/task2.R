@@ -2,7 +2,7 @@ STATUS_CODE <- list(
   '0' = "init",
   '1' = 'running',
   '2' = 'finish',
-  '-1' = 'canceled'
+  '-1' = 'cancelled'
 )
 
 
@@ -65,7 +65,7 @@ task__submit <- function(task, pack = NA, force = FALSE){
   tryCatch({
     scode <- httr::status_code(res)
   }, error = function(e){
-    stop("Unable to reach the server. Job canceled.\nAdditional message: ", e$message)
+    stop("Unable to reach the server. Job cancelled.\nAdditional message: ", e$message)
   })
 
   try({
@@ -113,12 +113,16 @@ task__submit <- function(task, pack = NA, force = FALSE){
 }
 
 task__server_status <- function(task){
-  # task$path_status <- 'jobs/status'
+  # task$path_status <- 'task/status'
   status <- list(
     status = 'unknown',
     error = NA,
     timestamp = NA,
-    message = "Server cannot find the task."
+    message = "Server cannot find the task.",
+    n_total = NA,
+    n_started = NA,
+    n_done = NA,
+    n_error = NA
   )
 
   if(!task$submitted){
@@ -133,13 +137,16 @@ task__server_status <- function(task){
   if(res$status_code == 200){
     content <- httr::content(res)
     if(length(content)){
-      content <- content[[1]]
       if(isTRUE(content$name == task$task_name)){
         status$status <- STATUS_CODE[[sprintf("%.0f", content$status)]]
         if(length(status$status)){
           status$error <- isTRUE(content$error > 0)
           status$timestamp <- as.POSIXct(content$time_added, origin="1970-01-01")
           status$message = "OK"
+          status$n_total <- as.integer(content$n_total)
+          status$n_started <- as.integer(content$n_started)
+          status$n_done <- as.integer(content$n_done)
+          status$n_error <- as.integer(content$n_error)
         } else {
           status$status <- NA
           status$message <- "Invalid server response"
@@ -202,8 +209,8 @@ task__resolved <- function(task){
 
     }
 
-    if(isTRUE(status$status %in% "canceled")){
-      stop("Job has been canceled by the server.")
+    if(isTRUE(status$status %in% "cancelled")){
+      stop("Job has been cancelled by the server.")
     }
 
   }, error = function(e){
@@ -213,7 +220,7 @@ task__resolved <- function(task){
     if(s$done + s$error >= task$njobs && s$running == 0){
       return(TRUE)
     } else {
-      stop("\nFailed to get tasks status from the server.\nServer is shutdown or the task is canceled.\n\nAdditional message: \n", e)
+      stop("\nFailed to get tasks status from the server.\nServer is shutdown or the task is cancelled.\n\nAdditional message: \n", e)
     }
 
   })
@@ -336,6 +343,210 @@ task__locally_resolved <- function(task){
   }
 }
 
+
+task__monitor_rstudio <- function(task, update_freq = 1, ...){
+  n_finished <- 0
+  submitted <- task$submitted
+  readable_name <- stringr::str_remove_all(task$task_name, "(^[a-zA-Z0-9]{32}__)|(__[a-zA-Z0-9]{16})")
+
+  job <- rstudioapi::jobAdd(
+    name = sprintf("%s (batch jobs)", readable_name), status = "Initializing...",
+    progressUnits = task$njobs, autoRemove = FALSE,
+    show = TRUE, running = FALSE,
+    actions = list(
+      "stop" = function(id){
+        print(id)
+        rstudioapi::jobRemove(job)
+      }
+    )
+  )
+
+  rstudioapi::jobAddOutput(job = job, output = sprintf("Task ID name: %s\n", task$task_name))
+  rstudioapi::jobAddOutput(job = job, output = sprintf("Task local path: %s\n", task$task_dir))
+  if(!submitted){
+    rstudioapi::jobAddOutput(job = job, output = sprintf("\nTask has not been submitted/scheduled. Please run the following command to submit task:\n\n"))
+    if(server_alive()){
+      rstudioapi::jobAddOutput(job = job, output = "\ttask$submit()\n\n")
+    } else {
+      rstudioapi::jobAddOutput(job = job, output = "\tensure_server()\n\ttask$submit()\n\n")
+    }
+  }
+
+  callback <- function(){
+    complete <- tryCatch({
+
+      complete <- FALSE
+
+      if(!submitted && task$submitted){
+        submitted <<- TRUE
+        rstudioapi::jobAddOutput(job = job, output = sprintf("Jobs submitted to: %s:%s\n", task$submitted_to$host, task$submitted_to$port))
+        rstudioapi::jobAddOutput(job = job, output = sprintf(
+          "\nYou can obtain the task details from: \n\t%s://%s:%s/info?task_name=%s\n",
+          task$protocol, task$submitted_to$host, task$submitted_to$port, task$task_name))
+        rstudioapi::jobAddOutput(job = job, output = "\nStart listening to the server report...\n")
+      } else if(task$submitted) {
+        s <- task$server_status()
+        msg <- sprintf("Total %s jobs: %d started, %d finished, %d errors\n", task$njobs, s$n_started, s$n_done, s$n_error)
+
+        rstudioapi::jobSetStatus(job = job, status = msg)
+        finished <- s$n_done + s$n_error
+        if(!isTRUE(n_finished == finished)){
+          n_finished <<- finished
+          rstudioapi::jobAddOutput(job = job, output = sprintf("%d finished out of %d\n", n_finished, task$njobs))
+          rstudioapi::jobSetProgress(job = job, units = n_finished)
+        }
+
+
+
+        if(s$status == "running"){
+          rstudioapi::jobSetState(job = job, state = "running")
+        } else if(s$status == "finish"){
+          if(s$error){
+            rstudioapi::jobSetState(job = job, state = "failed")
+            rstudioapi::jobAddOutput(job = job, output = "\nTask finished with errors\n")
+          } else {
+            rstudioapi::jobSetState(job = job, state = "succeeded")
+            rstudioapi::jobAddOutput(job = job, output = "\nTask finished\n")
+          }
+          complete <- TRUE
+        } else if (s$status == "cancelled") {
+          rstudioapi::jobSetState(job = job, state = "cancelled")
+          rstudioapi::jobAddOutput(job = job, output = "\nTask cancelled by the server\n")
+          complete <- TRUE
+        }
+
+      }
+
+      complete
+
+    }, error = function(e){
+      rstudioapi::jobSetStatus(job = job, status = e$message)
+      TRUE
+    })
+
+    if(!complete){
+      later::later(callback, delay = update_freq)
+    }
+  }
+  callback()
+}
+
+task__monitor_progress <- function(task, update_freq = 1, ..., title) {
+  readable_name <- stringr::str_remove_all(task$task_name, "(^[a-zA-Z0-9]{32}__)|(__[a-zA-Z0-9]{16})")
+  if(missing(title)){
+    title <- readable_name
+  }
+  p <- dipsaus::progress2(..., title = title, max = task$njobs)
+
+  finished <- -1
+
+  callback <- function(){
+    complete <- FALSE
+    if(finished == -1 && task$submitted){
+      finished <<- 0
+      p$inc(detail = "Added to task queue", message = "Initialized", amount = 0)
+    } else if(task$submitted) {
+      complete <- tryCatch({
+        s <- task$server_status()
+        n_f <- s$n_done + s$n_error
+        if(n_f != finished){
+          msg <- sprintf("%d (%d errors) of %d finished", n_f, s$n_error, task$njobs)
+          p$inc(detail = msg, message = s$status, amount = n_f - finished)
+          finished <<- n_f
+        }
+        complete <- s$status %in% c("finished", "cancelled")
+        if(complete){
+          p$close(s$status)
+        }
+        complete
+      }, error = function(e){
+        p$inc(paste("Error while getting status:", paste(e$message, collapse = '')))
+        TRUE
+      })
+    }
+
+
+    if(complete){
+      if(!p$is_closed()){
+        p$close()
+      }
+    } else {
+      later::later(callback, delay = update_freq)
+    }
+  }
+  callback()
+}
+
+task__monitor_callback <- function(task, update_freq = 1, ..., callback) {
+
+  callback(status = "not submitted", submitted = task$submitted,
+           total = task$njobs, finished = NA, error = NA)
+  finished <- -1
+  loop <- function(){
+
+    complete <- FALSE
+    if(finished == -1 && task$submitted){
+      finished <<- 0
+      callback(status = "init", submitted = task$submitted,
+               total = task$njobs, finished = 0, error = 0)
+    } else {
+      complete <- tryCatch({
+        s <- task$server_status()
+        n_f <- s$n_done + s$n_error
+        if(n_f != finished){
+          finished <<- n_f
+          callback(status = s$status, submitted = task$submitted,
+                   total = task$njobs, finished = finished, error = s$n_error)
+        }
+        complete <- s$status %in% c("finished", "cancelled")
+        complete
+      }, error = function(e){
+        callback(status = "callback error", submitted = task$submitted,
+                 total = task$njobs, finished = NA, error = NA)
+        TRUE
+      })
+    }
+
+
+    if(!complete){
+      later::later(loop, delay = update_freq)
+    }
+
+  }
+
+  loop()
+}
+
+task__monitor <- function(task, mode = c("rstudiojob", "progress", "callback"), callback = NULL, ..., update_freq = 1){
+  mode <- match.arg(mode)
+
+  if(mode == 'rstudiojob'){
+    if(!dipsaus::package_installed('rstudioapi')){
+      message("Package `rstudioapi` not installed; fallback to 'progress'")
+      mode <- 'progress'
+    } else if(!rstudioapi::isAvailable('1.3.1')) {
+      message("Not in RStudio or the version is too low; fall back to 'progress'")
+      mode <- 'progress'
+    }
+  } else if(mode == "callback" && is.null(callback)){
+    mode = "progress"
+  }
+
+  switch (
+    mode,
+    'progress' = {
+      task__monitor_progress(task, update_freq = update_freq, ...)
+    },
+    'callback' = {
+      task__monitor_callback(task, update_freq = update_freq, ..., callback = callback)
+    },
+    'rstudiojob' = {
+      task__monitor_rstudio(task, update_freq = update_freq, ...)
+    }
+  )
+
+}
+
 new_task_internal <- function(task_root, task_dir, task_name, reg){
   if(missing(reg)){
     suppressMessages({
@@ -349,9 +560,9 @@ new_task_internal <- function(task_root, task_dir, task_name, reg){
     host = default_host(allow0 = FALSE),
     port = default_port(),
     path_validate = "validate/ping",
-    path_submit = "jobs/new",
-    path_status = 'jobs/status',
-    path_download = 'jobs/download',
+    path_submit = "task/new",
+    path_status = 'task/status',
+    path_download = 'task/download',
 
     # fields
     reg = reg,
@@ -380,6 +591,9 @@ new_task_internal <- function(task_root, task_dir, task_name, reg){
     locally_resolved = function(){ task__locally_resolved(task) },
     zip = function(target = tempfile(fileext = '.zip')){ task__zip(task, target) },
     download = function(target, force = FALSE){ task__download(task, target, force = FALSE) },
+    monitor = function(mode = c("rstudiojob", "progress", "callback"), callback = NULL, update_freq = 1, ...){
+      task__monitor(task, mode = mode, callback = callback, update_freq = update_freq, ...)
+    },
 
     # debug
     ..view = function(){

@@ -69,7 +69,7 @@ The task is created locally. However, it will not run until submitted to the res
 ```r
 task$submit()
 
-#> Response [http://127.0.0.1:7033/jobs/new]
+#> Response [http://127.0.0.1:7033/task/new]
 #> Date: 2021-02-04 11:04
 #> Status: 200
 #> Content-Type: application/json
@@ -127,7 +127,7 @@ Kill the server right now
 kill_server(host = "127.0.0.1", port = 7033)
 ```
 
-All unfinished tasks will be marked as `canceled` immediately. You need to submit the task again to resume them (see section 2.5 below).
+All unfinished tasks will be marked as `cancelled` immediately. You need to submit the task again to resume them (see section 2.5 below).
 
 
 If you have previously set the default `host` and `port`, simply call `kill_server()`
@@ -153,7 +153,7 @@ source(system.file('dashboards/client/app.R', package = 'restbatch'))
 
 ### 2.5 Resume a task
 
-If a server is killed, all unfinished tasks will be canceled. The tasks can be resumed without re-run everything. This requires to submit with flag `pack=FALSE` and `force=TRUE`:
+If a server is killed, all unfinished tasks will be cancelled. The tasks can be resumed without re-run everything. This requires to submit with flag `pack=FALSE` and `force=TRUE`:
 
 ```r
 task$submit(pack=FALSE, force=TRUE)
