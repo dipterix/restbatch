@@ -61,7 +61,10 @@ attached_packages <- function(include_base = FALSE){
 }
 
 get_os <- function(){
-  os <- R.version$os
+  if("windows" %in% .Platform$OS.type){
+    return("windows")
+  }
+  os <- stringr::str_to_lower(R.version$os)
   if(stringr::str_detect(os, '^darwin')){
     return('darwin')
   }
