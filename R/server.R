@@ -696,8 +696,8 @@ start_server <- function(
       start_script <- file.path(server_dir, "restbatch.start.sh")
       file.copy(system.file('bin/start_server.sh', package = 'restbatch'), start_script, overwrite = TRUE)
       Sys.chmod(start_script, mode = "0777", use_umask = FALSE)
-      system2( start_script, c(
-        settings, port, host, protocol, R.home('R')
+      system2("bash" , c(
+        start_script, settings, port, host, protocol, R.home('R')
       ), stdout = FALSE, stderr = FALSE, wait = FALSE)
       # writeLines(sprintf('tempdir(check = TRUE)\nrestbatch:::start_server_internal(host=\'%s\',port=%s,settings=\'%s\')',
       #                    host, port, settings), start_script)

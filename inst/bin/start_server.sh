@@ -1,4 +1,4 @@
-#!/usr/bin/env bash
+#!/bin/bash
 
 settings=$1
 port=$2
