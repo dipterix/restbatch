@@ -1,8 +1,9 @@
 require(testthat)
 
-test_that("Server operation", {
+test_that("Server operation - local UNIX", {
 
   skip_on_cran()
+  skip_if(get_os() == 'windows', message = "Windows require additional system auth, skipped.")
 
   # test port
   default_host("127.0.0.1")
@@ -64,5 +65,34 @@ test_that("Server operation", {
 
   kill_server(port = 7035, host = '127.0.0.1')
   task$remove()
+
+})
+
+
+test_that("Server operation - WINDOWS/CRAN", {
+
+  testthat::expect_true(isTRUE(!server_alive()))
+
+  # Make a task
+  task <- new_task2(function(x){ x + 1 }, 1)
+  on.exit({
+    if(dir.exists(task$task_dir)){
+      task$remove()
+    }
+  }, add = TRUE)
+
+
+  expect_false(task$submitted)
+  expect_error(task$resolved())
+  expect_error(task$collect())
+  expect_error(task$download(tempfile()))
+  expect_false(task$locally_resolved())
+
+  # Not submitted warning
+  expect_warning(task$server_status())
+
+  task$remove()
+  expect_false(dir.exists(task$task_dir))
+  expect_silent(task$remove())
 
 })
