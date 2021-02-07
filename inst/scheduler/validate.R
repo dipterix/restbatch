@@ -11,6 +11,7 @@ auth_enabled_modules <- getOption('restbatch.modules_require_auth_list')
 #* @post /ping
 function(req) {
   if(debug){assign('req', req, envir = globalenv())}
+
   return(handler_validate_server(req))
 }
 
@@ -47,8 +48,8 @@ function(req) {
         # Running in a child session, safe to quit
         httpuv::stopAllServers()
       })
-    }, delay = 3)
-    return(list(message = "Shutting down the server in 3 seconds..."))
+    }, delay = 0.5)
+    return(list(message = "Shutting down the server now..."))
 
   }
 

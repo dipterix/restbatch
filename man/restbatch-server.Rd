@@ -18,6 +18,7 @@ server_alive(
 )
 
 kill_server(
+  wait = TRUE,
   host = default_host(allow0 = FALSE),
   port = default_port(),
   protocol = default_protocol(),
@@ -47,8 +48,9 @@ ensure_server(
   protocol = default_protocol(),
   make_default = TRUE,
   validate = TRUE,
-  validate_sleep = 0.5,
+  validate_sleep = 0.1,
   validate_maxwait = 30,
+  timeout = 3,
   ...
 )
 }
@@ -65,6 +67,8 @@ ensure_server(
 \item{path, path_validate}{internally used}
 
 \item{...}{pass to other methods}
+
+\item{wait}{wait until the server is shut down; default is true.}
 
 \item{settings}{path to a server configuration file; a sample can be
 obtained via \code{\link{conf_sample}}; see details}
@@ -83,6 +87,8 @@ expires; default is \code{FALSE}}
 \item{validate_sleep}{if validation is on, intervals to check alive}
 
 \item{validate_maxwait}{maximum waiting time in seconds to validate}
+
+\item{timeout}{'http' request timeout, default is 3, see details.}
 }
 \value{
 \code{start_server} returns a list; \code{server_alive} returns
@@ -95,7 +101,14 @@ Start, validate, stop a batch server
 The function \code{ensure_server} is a combination of
 \code{start_server} and \code{server_alive}: it checks whether the target
 server is alive first before starting the server. If \code{validate} is true,
-then the it also wait util the server is completely up and ready to serve.
+then the it also wait until the server is completely up and ready to serve.
+
+\code{timeout} is the seconds that a request should wait to check if the
+server is alive. On most UNIX systems, request fail immediately once the
+server is not available. However on Windows, requests might block the session
+if the server is unavailable. \code{timeout} is the upper time limit that
+would take to fail the test. If the server fails to respond before the limit,
+the test will also fail.
 
 \code{kill_server} stops the server as soon as possible. It sends signals to
 the server to cancel the unfinished tasks and shutdown.

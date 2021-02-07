@@ -427,7 +427,9 @@ findPort <- function (port, mustWork = NA) {
 #' \code{TRUE}; see details
 #' @param validate_sleep if validation is on, intervals to check alive
 #' @param validate_maxwait maximum waiting time in seconds to validate
+#' @param timeout 'http' request timeout, default is 3, see details.
 #' @param path,path_validate internally used
+#' @param wait wait until the server is shut down; default is true.
 #' @param ... pass to other methods
 #'
 #' @return \code{start_server} returns a list; \code{server_alive} returns
@@ -436,7 +438,14 @@ findPort <- function (port, mustWork = NA) {
 #' @details The function \code{ensure_server} is a combination of
 #' \code{start_server} and \code{server_alive}: it checks whether the target
 #' server is alive first before starting the server. If \code{validate} is true,
-#' then the it also wait util the server is completely up and ready to serve.
+#' then the it also wait until the server is completely up and ready to serve.
+#'
+#' \code{timeout} is the seconds that a request should wait to check if the
+#' server is alive. On most UNIX systems, request fail immediately once the
+#' server is not available. However on Windows, requests might block the session
+#' if the server is unavailable. \code{timeout} is the upper time limit that
+#' would take to fail the test. If the server fails to respond before the limit,
+#' the test will also fail.
 #'
 #' \code{kill_server} stops the server as soon as possible. It sends signals to
 #' the server to cancel the unfinished tasks and shutdown.
@@ -574,7 +583,8 @@ server_alive <- function(port = default_port(), host = default_host(allow0 = FAL
       # sprintf('%s://%s:%d/%s', protocol, host, port, path),
       path = path, host = host,
       port = port, protocol = protocol,
-      body = NULL, method = 'POST', encode = 'json'
+      body = NULL, method = 'POST', encode = 'json',
+      ...
     )
 
     # get auth info
@@ -612,19 +622,43 @@ server_alive <- function(port = default_port(), host = default_host(allow0 = FAL
 
 #' @rdname restbatch-server
 #' @export
-kill_server <- function(host = default_host(allow0 = FALSE), port = default_port(),
+kill_server <- function(wait = TRUE, host = default_host(allow0 = FALSE), port = default_port(),
                         protocol = default_protocol(), path = 'validate/shutdown'){
   if(host == '0.0.0.0'){
     host <- '127.0.0.1'
   }
-  res <- request_server(
-    path = path, host = host,
-    port = port, protocol = protocol
-    # sprintf('%s://%s:%d/%s', protocol, host, port, path)
-  )
-  ret <- httr::content(res)
-  attr(ret, 'response') <- res
-  ret
+  tryCatch({
+    res <- request_server(
+      path = path, host = host,
+      port = port, protocol = protocol
+      # sprintf('%s://%s:%d/%s', protocol, host, port, path)
+    )
+    ret <- httr::content(res)
+    ret <- ret$message[[1]]
+
+    message(ret)
+
+  }, error = function(e){
+    e$message <- paste0("Failed to close the server due to:\n", e$message)
+    stop(e)
+  })
+
+  if(!wait){
+    return(invisible(TRUE))
+  }
+
+  # wait
+  Sys.sleep(1)
+
+  alive <- tryCatch({
+    server_alive(port = port, host = host, protocol = protocol, timeout = 3)
+  }, error = function(e){ FALSE })
+
+  if(alive){
+    warning("Signal sent to the server, but server seems to be still alive.")
+  }
+  return(invisible(!alive))
+
 }
 
 
@@ -724,8 +758,7 @@ start_server <- function(
       save_yaml(settings_list, file.path(server_dir, "settings.yaml"))
 
       Sys.chmod(start_script, mode = "0777", use_umask = FALSE)
-      system2(start_script , sprintf('"%s"', R.home('bin/R')), stdout = FALSE,
-              stderr = FALSE, wait = FALSE)
+      system2(start_script , sprintf('"%s"', R.home('bin/R')), stdout = FALSE, stderr = FALSE, wait = FALSE)
       # writeLines(sprintf('tempdir(check = TRUE)\nrestbatch:::start_server_internal(host=\'%s\',port=%s,settings=\'%s\')',
       #                    host, port, settings), start_script)
       #
@@ -805,16 +838,19 @@ autoclose_server <- function(host = default_host(), port = default_port(), auto_
 #' @export
 ensure_server <- function(host = default_host(), port = default_port(),
                           protocol = default_protocol(), make_default = TRUE,
-                          validate = TRUE, validate_sleep = 0.5, validate_maxwait = 30, ...){
+                          validate = TRUE, validate_sleep = 0.1, validate_maxwait = 30, timeout = 3, ...){
   newly_started <- FALSE
-  if(!server_alive(port = port, host = host, protocol = protocol, ...)){
+  if(!server_alive(port = port, host = host, protocol = protocol, timeout = timeout, ...)){
     newly_started <- TRUE
     start_server(host, port, protocol = protocol, make_default = FALSE, ...)
 
+    # wait for the server to get ready
+    Sys.sleep(1)
     if(validate){
-      timeout <- Sys.time() + validate_maxwait
-      while(!server_alive(port = port, host = host, protocol = protocol, ...)){
-        if(timeout < Sys.time()){
+      expire <- Sys.time() + validate_maxwait
+      while(!server_alive(port = port, host = host, protocol = protocol, timeout = timeout, ...)){
+        # print("No")
+        if(expire < Sys.time()){
           stop("Cannot create server at ", host, ":", port, "\nPlease manually start server using `restbatch::start_server` function.")
         }
         Sys.sleep(validate_sleep)

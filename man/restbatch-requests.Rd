@@ -14,7 +14,8 @@ request_server(
   body = list(),
   header = list(),
   method = c("POST", "GET"),
-  encode = "json"
+  encode = "json",
+  timeout = 15
 )
 
 request_task_list(
@@ -36,6 +37,10 @@ request_task_list(
 \item{method}{method of request; choices are \code{'POST'} and \code{'GET'}}
 
 \item{encode}{serialization method to encode request body}
+
+\item{timeout}{maximum waiting time in seconds before aborting the request;
+default is 15. If the server is off or fails to respond before time running
+out, the request will result in an error.}
 
 \item{task_status}{task status to filter}
 }

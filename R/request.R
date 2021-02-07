@@ -27,6 +27,9 @@ prepare_request <- function(){
 #' @param header additional header key-value pairs
 #' @param method method of request; choices are \code{'POST'} and \code{'GET'}
 #' @param encode serialization method to encode request body
+#' @param timeout maximum waiting time in seconds before aborting the request;
+#' default is 15. If the server is off or fails to respond before time running
+#' out, the request will result in an error.
 #' @param task_status task status to filter
 #' @return \code{'httr'} response. You can use \code{\link[httr]{content}} to
 #' check the response contents.
@@ -57,7 +60,7 @@ authtoken <- function(host, port, token){
 #' @export
 request_server <- function(
   path, host = default_host(), port = default_port(), protocol = default_protocol(),
-  body = list(), header = list(), method = c('POST', 'GET'), encode = 'json'){
+  body = list(), header = list(), method = c('POST', 'GET'), encode = 'json', timeout = 15){
   method <- match.arg(method)
   conf <- prepare_request()
   dipsaus::list_to_fastmap2(header, conf)
@@ -82,6 +85,7 @@ request_server <- function(
       url = request_url,
       config = do.call(httr::add_headers, conf),
       httr::authenticate(get_user(), token, "basic"),
+      httr::timeout(timeout),
       encode = encode,
       body = body
     )
@@ -133,6 +137,7 @@ request_server <- function(
         url = request_url,
         config = do.call(httr::add_headers, conf),
         httr::authenticate(get_user(), answer, "basic"),
+        httr::timeout(timeout),
         encode = encode,
         body = body
       )
