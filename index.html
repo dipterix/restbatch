@@ -5,13 +5,13 @@
 <meta charset="utf-8">
 <meta http-equiv="X-UA-Compatible" content="IE=edge">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>A RESTful Framework to Schedule R Batch Jobs • restbatch</title>
+<title>A Simple RESTful Web Service to Schedule R Batch Jobs • restbatch</title>
 <!-- jquery --><script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.4.1/jquery.min.js" integrity="sha256-CSXorXvZcTkaix6Yvo6HppcZGetbYMGWSFlBw8HfCJo=" crossorigin="anonymous"></script><!-- Bootstrap --><link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/twitter-bootstrap/3.4.1/css/bootstrap.min.css" integrity="sha256-bZLfwXAP04zRMK2BjiO8iu9pf4FbLqX6zitd+tIvLhE=" crossorigin="anonymous">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/twitter-bootstrap/3.4.1/js/bootstrap.min.js" integrity="sha256-nuL8/2cJ5NDSSwnKD8VqreErSWHtnEP9E7AySL+1ev4=" crossorigin="anonymous"></script><!-- bootstrap-toc --><link rel="stylesheet" href="bootstrap-toc.css">
 <script src="bootstrap-toc.js"></script><!-- Font Awesome icons --><link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.12.1/css/all.min.css" integrity="sha256-mmgLkCYLUQbXn0B1SRqzHar6dCnv9oZFPEC1g1cwlkk=" crossorigin="anonymous">
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.12.1/css/v4-shims.min.css" integrity="sha256-wZjR52fzng1pJHwx4aV2AO3yyTOXrcDW7jBpJtTwVxw=" crossorigin="anonymous">
 <!-- clipboard.js --><script src="https://cdnjs.cloudflare.com/ajax/libs/clipboard.js/2.0.6/clipboard.min.js" integrity="sha256-inc5kl9MA1hkeYUt+EC3BhlIgyp/2jDIyBLS6k3UxPI=" crossorigin="anonymous"></script><!-- headroom.js --><script src="https://cdnjs.cloudflare.com/ajax/libs/headroom/0.11.0/headroom.min.js" integrity="sha256-AsUX4SJE1+yuDu5+mAVzJbuYNPHj/WroHuZ8Ir/CkE0=" crossorigin="anonymous"></script><script src="https://cdnjs.cloudflare.com/ajax/libs/headroom/0.11.0/jQuery.headroom.min.js" integrity="sha256-ZX/yNShbjqsohH1k95liqY9Gd8uOiE1S4vZc+9KQ1K4=" crossorigin="anonymous"></script><!-- pkgdown --><link href="pkgdown.css" rel="stylesheet">
-<script src="pkgdown.js"></script><meta property="og:title" content="A RESTful Framework to Schedule R Batch Jobs">
+<script src="pkgdown.js"></script><meta property="og:title" content="A Simple RESTful Web Service to Schedule R Batch Jobs">
 <meta property="og:description" content="More about what it does (maybe more than one line)
     Use four spaces when indenting paragraphs within the Description.">
 <!-- mathjax --><script src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.5/MathJax.js" integrity="sha256-nvJJv9wWKEm88qvoQl9ekL2J+k/RWIsaSScxxlsrv8k=" crossorigin="anonymous"></script><script src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.5/config/TeX-AMS-MML_HTMLorMML.js" integrity="sha256-84DKXVJXs0/F8OTMzX4UR909+jtl4G7SPypPavF+GfA=" crossorigin="anonymous"></script><!--[if lt IE 9]>
@@ -62,25 +62,20 @@
   <div class="contents col-md-9">
 <div id="a-small-restful-framework-to-run-batch-r-scripts-in-the-background" class="section level1">
 <div class="page-header"><h1 class="hasAnchor">
-<a href="#a-small-restful-framework-to-run-batch-r-scripts-in-the-background" class="anchor"></a>A small RESTful framework to run batch R scripts in the background</h1></div>
+<a href="#a-small-restful-framework-to-run-batch-r-scripts-in-the-background" class="anchor"></a>A small ‘RESTful’ framework to run batch R scripts in the background</h1></div>
 <!-- badges: start -->
 
 <blockquote>
 <p>This package is still under development. A road map will be built on Github soon.</p>
 </blockquote>
-<p>Start a simple <a href="https://restfulapi.net/">RESTful</a> R server running batch jobs anywhere to unleash the computing power</p>
+<p>Starts simple ‘<a href="https://restfulapi.net/">RESTful</a>’ R servers running batch jobs anywhere to unleash the computing power:</p>
 <ul>
 <li>On local machine</li>
-<li>Runs within a lan that has idle computers or servers (see <a href="#remote-setups">remote setups</a>)</li>
+<li>Runs within a lab that has idle computers or servers (see <a href="#remote-setups">remote setups</a>)</li>
 <li>Runs on a public server, see <a href="#safety">safety</a> and <a href="#remote-setups">remote setups</a> (under construction)</li>
 </ul>
-<p>The package has the following features</p>
-<ul>
-<li>Schedule tasks without blocking the session</li>
-<li>Runs even the main R session is quitted</li>
-<li>Easy to check task status on browsers or to be integrated into websites (REST api)</li>
-<li>Customizable (see the sections below)</li>
-</ul>
+<p>The package automatically queues and schedules R tasks that would run hours or days without blocking the main session. It runs even if you exit the main R session. The tasks can be monitored and inspected in multiple ways.</p>
+<p>Try <code>restbatch</code> if you need to run R scripts in the background that take minutes, hours, or even days. Don’t use <code>restbatch</code> if the tasks are micro-operations (use <code>clustermq</code> instead).</p>
 <div id="1-installation" class="section level2">
 <h2 class="hasAnchor">
 <a href="#1-installation" class="anchor"></a>1. Installation</h2>
@@ -95,7 +90,7 @@
 <div id="21-start-a-restbatch-server" class="section level3">
 <h3 class="hasAnchor">
 <a href="#21-start-a-restbatch-server" class="anchor"></a>2.1 Start a <code>restbatch</code> server</h3>
-<p>In R or RStudio console</p>
+<p>In <code>R</code> or <code>RStudio</code> console</p>
 <div class="sourceCode" id="cb2"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span class="kw"><a href="https://rdrr.io/r/base/library.html">library</a></span><span class="op">(</span><span class="va">restbatch</span><span class="op">)</span>
 
@@ -151,7 +146,7 @@ Status for 10 jobs at 2021-02-04 05:04:55:
 <div class="sourceCode" id="cb6"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span class="kw"><a href="https://rdrr.io/r/base/library.html">library</a></span><span class="op">(</span><span class="va">restbatch</span><span class="op">)</span>
 <span class="va">task</span> <span class="op">&lt;-</span> <span class="fu"><a href="reference/restbench-tasks.html">restore_task2</a></span><span class="op">(</span><span class="st">"e5f6226c9f2e6874dd3a7f0944b13dcb__Test"</span><span class="op">)</span></code></pre></div>
-<p>To obtain the task results, it is always a good practice to check whether a task has been finished ot not. This could be achieved via methods <code>resolved</code> or <code>server_status</code> (assuming the server is still running).</p>
+<p>To obtain the task results, it is always a good practice to check whether a task has been finished or not. This could be achieved via methods <code>resolved</code> or <code>server_status</code> (assuming the server is still running).</p>
 <div class="sourceCode" id="cb7"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span class="va">task</span><span class="op">$</span><span class="fu">resolved</span><span class="op">(</span><span class="op">)</span>
 <span class="va">task</span><span class="op">$</span><span class="fu">server_status</span><span class="op">(</span><span class="op">)</span></code></pre></div>
@@ -166,7 +161,7 @@ Status for 10 jobs at 2021-02-04 05:04:55:
 <p>Kill the server right now</p>
 <div class="sourceCode" id="cb9"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span class="fu"><a href="reference/restbatch-server.html">kill_server</a></span><span class="op">(</span>host <span class="op">=</span> <span class="st">"127.0.0.1"</span>, port <span class="op">=</span> <span class="fl">7033</span><span class="op">)</span></code></pre></div>
-<p>All unfinished tasks will be marked as <code>cancelled</code> immediately. You need to submit the task again to resume them (see section 2.5 below).</p>
+<p>All unfinished tasks will be marked as <code>canceled</code> immediately. You need to submit the task again to resume them (see section 2.5 below).</p>
 <p>If you have previously set the default <code>host</code> and <code>port</code>, simply call <code><a href="reference/restbatch-server.html">kill_server()</a></code></p>
 <p>To kill the server once your current R session is closed,</p>
 <div class="sourceCode" id="cb10"><pre class="downlit sourceCode r">
@@ -182,7 +177,7 @@ Status for 10 jobs at 2021-02-04 05:04:55:
 
 <span class="kw"><a href="https://rdrr.io/r/base/source.html">source</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/system.file.html">system.file</a></span><span class="op">(</span><span class="st">'dashboards/client/app.R'</span>, package <span class="op">=</span> <span class="st">'restbatch'</span><span class="op">)</span><span class="op">)</span></code></pre></div>
 <p><img src="https://user-images.githubusercontent.com/8163576/106888900-d6dabe80-66ac-11eb-8c1f-27716a3a7112.png" width="50%"></p>
-<p>Alternatively, <code>task$monitor()</code> function integrates RStudio, creating job panels in via package <code>rstudioapi</code>.</p>
+<p>Alternatively, <code>task$monitor()</code> function integrates <code>RStudio</code>, creating job panels in via package <code>rstudioapi</code>.</p>
 <div class="sourceCode" id="cb12"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span class="co"># install.packages("rstudioapi")</span>
 <span class="va">task</span><span class="op">$</span><span class="fu">monitor</span><span class="op">(</span><span class="op">)</span></code></pre></div>
@@ -190,7 +185,7 @@ Status for 10 jobs at 2021-02-04 05:04:55:
 <div id="25-resume-a-task" class="section level3">
 <h3 class="hasAnchor">
 <a href="#25-resume-a-task" class="anchor"></a>2.5 Resume a task</h3>
-<p>If a server is killed, all unfinished tasks will be cancelled. The tasks can be resumed without re-run everything. This requires to submit with flag <code>pack=FALSE</code> and <code>force=TRUE</code>:</p>
+<p>If a server is killed, all unfinished tasks will be canceled. The tasks can be resumed without re-run everything. This requires to submit with flag <code>pack=FALSE</code> and <code>force=TRUE</code>:</p>
 <div class="sourceCode" id="cb13"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span class="va">task</span><span class="op">$</span><span class="fu">submit</span><span class="op">(</span>pack<span class="op">=</span><span class="cn">FALSE</span>, force<span class="op">=</span><span class="cn">TRUE</span><span class="op">)</span></code></pre></div>
 </div>

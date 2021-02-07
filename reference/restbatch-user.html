@@ -136,7 +136,7 @@
     </tr>
     <tr>
       <th>role</th>
-      <td><p>role of the user; choices as 'user' (deafult) and 'admin'</p></td>
+      <td><p>role of the user; choices as 'user' (default) and 'admin'</p></td>
     </tr>
     <tr>
       <th>password</th>
@@ -169,7 +169,7 @@ exists in the database</p></td>
 <code>overwrite</code>. If the user already exists, <code>force=FALSE</code> will raise
 errors or prompt for options. If <code>force=TRUE</code>, then the key will be
 added. Depending on <code>overwrite</code> choice, if <code>overwrite</code> is set to
-false, then multiple keys will coexit for the same user and they can use
+false, then multiple keys will coexist for the same user and they can use
 any one to file task requests.</p></td>
     </tr>
     </table>
@@ -190,17 +190,17 @@ any one to file task requests.</p></td>
 <span class='co'># Now share the passcode and pen_file to the end user</span>
 <span class='co'># password is</span>
 <span class='va'>pem</span><span class='op'>$</span><span class='va'>password</span>
-</div><div class='output co'>#&gt; [1] "c37ab879"</div><div class='input'>
+</div><div class='output co'>#&gt; [1] "34134d6d"</div><div class='input'>
 <span class='co'># encoded pem_file is stored at</span>
 <span class='va'>pem</span><span class='op'>$</span><span class='va'>pem_file</span>
-</div><div class='output co'>#&gt; [1] "/var/folders/24/8k48jl6d249_n_qfxwsl6xvm0000gn/T//RtmplStmjl/file6e89df2fa0"</div><div class='input'>
+</div><div class='output co'>#&gt; [1] "/var/folders/24/8k48jl6d249_n_qfxwsl6xvm0000gn/T//Rtmpv9o7cl/file76610e4387a"</div><div class='input'>
 <span class='co'># ---------- If you are the end user ----------</span>
 
 <span class='co'># Send your user ID and your preferred user name to the system admin</span>
 <span class='co'># user ID can be obtained from `my_userid()`</span>
 
 <span class='fu'>my_userid</span><span class='op'>(</span><span class='op'>)</span>  <span class='co'># something like "22dbdc9e876a74a768c15e03c7356780" (32-length)</span>
-</div><div class='output co'>#&gt; [1] "37908e3a26fb6f38c858acbeb6907394"</div><div class='input'>
+</div><div class='output co'>#&gt; [1] "2ae9ecbf40044da1a67f8ad57383ed7a"</div><div class='input'>
 <span class='co'># You will get a passcode and a pem file from the system admin</span>
 <span class='co'># (see variable `pem` in the previous example)</span>
 
