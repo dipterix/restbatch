@@ -121,6 +121,7 @@
 <span class='op'>)</span>
 
 <span class='fu'>kill_server</span><span class='op'>(</span>
+  wait <span class='op'>=</span> <span class='cn'>TRUE</span>,
   host <span class='op'>=</span> <span class='fu'><a href='default_url.html'>default_host</a></span><span class='op'>(</span>allow0 <span class='op'>=</span> <span class='cn'>FALSE</span><span class='op'>)</span>,
   port <span class='op'>=</span> <span class='fu'><a href='default_url.html'>default_port</a></span><span class='op'>(</span><span class='op'>)</span>,
   protocol <span class='op'>=</span> <span class='fu'><a href='default_url.html'>default_protocol</a></span><span class='op'>(</span><span class='op'>)</span>,
@@ -150,8 +151,9 @@
   protocol <span class='op'>=</span> <span class='fu'><a href='default_url.html'>default_protocol</a></span><span class='op'>(</span><span class='op'>)</span>,
   make_default <span class='op'>=</span> <span class='cn'>TRUE</span>,
   validate <span class='op'>=</span> <span class='cn'>TRUE</span>,
-  validate_sleep <span class='op'>=</span> <span class='fl'>0.5</span>,
+  validate_sleep <span class='op'>=</span> <span class='fl'>0.1</span>,
   validate_maxwait <span class='op'>=</span> <span class='fl'>30</span>,
+  timeout <span class='op'>=</span> <span class='fl'>3</span>,
   <span class='va'>...</span>
 <span class='op'>)</span></pre>
 
@@ -180,6 +182,10 @@
     <tr>
       <th>...</th>
       <td><p>pass to other methods</p></td>
+    </tr>
+    <tr>
+      <th>wait</th>
+      <td><p>wait until the server is shut down; default is true.</p></td>
     </tr>
     <tr>
       <th>settings</th>
@@ -213,6 +219,10 @@ expires; default is <code>FALSE</code></p></td>
       <th>validate_maxwait</th>
       <td><p>maximum waiting time in seconds to validate</p></td>
     </tr>
+    <tr>
+      <th>timeout</th>
+      <td><p>'http' request timeout, default is 3, see details.</p></td>
+    </tr>
     </table>
 
     <h2 class="hasAnchor" id="value"><a class="anchor" href="#value"></a>Value</h2>
@@ -224,7 +234,13 @@ whether the server can be connected; others return nothing.</p>
     <p>The function <code>ensure_server</code> is a combination of
 <code>start_server</code> and <code>server_alive</code>: it checks whether the target
 server is alive first before starting the server. If <code>validate</code> is true,
-then the it also wait util the server is completely up and ready to serve.</p>
+then the it also wait until the server is completely up and ready to serve.</p>
+<p><code>timeout</code> is the seconds that a request should wait to check if the
+server is alive. On most UNIX systems, request fail immediately once the
+server is not available. However on Windows, requests might block the session
+if the server is unavailable. <code>timeout</code> is the upper time limit that
+would take to fail the test. If the server fails to respond before the limit,
+the test will also fail.</p>
 <p><code>kill_server</code> stops the server as soon as possible. It sends signals to
 the server to cancel the unfinished tasks and shutdown.
 <code>autoclose_server</code> stops the server when the current R session exits.</p>
