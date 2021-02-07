@@ -681,14 +681,26 @@ start_server <- function(
 
     # create new server
     if(get_os() == 'windows'){
+
+      # server_dir <- "C:\\Users\\zheng\\AppData\\Local\\R\\cache\\R\\restbatch\\servers/7033/"
+      # host = '127.0.0.1'
+      # port = 7033
+      # settings = system.file("default_settings.yaml", package = 'restbatch')
+
+      cmd <- sprintf('restbatch:::start_server_internal(host=\'%s\',port=%d,settings=\'%s\')',
+                     host, port, normalizePath(settings, mustWork = TRUE, winslash = "/"))
+
+      f <- tempfile()
+      writeLines(cmd, f)
+
       system2(
-        command = R.home("Rscript"),
+        command = normalizePath(R.home("bin\\R.exe")),
         args = c(
+          "CMD", "BATCH",
           "--no-save", "--no-restore",
-          "--default-packages=utils,restbatch",
-          "-e",
-          sprintf('"restbatch:::start_server_internal(host=\'%s\',port=%d,settings=\'%s\')"',
-                  host, port, normalizePath(settings, mustWork = TRUE))
+          shQuote(normalizePath(f), type = "cmd2"),
+          shQuote(normalizePath(file.path(server_dir, "server.log"),
+                                mustWork = FALSE), type = "cmd2")
         ),
         stdout = file.path(server_dir, 'stdout.log'),
         stderr = file.path(server_dir, 'stderr.log'),
