@@ -157,7 +157,7 @@ request_task_list <- function(task_status = 'valid', host = default_host(allow0 
   content <- httr::content(res)
 
   content <- do.call('rbind', lapply(content, function(item){
-    as.data.frame(item)
+    as.data.frame(item, stringsAsFactors = FALSE)
   }))
 
   res <- data.frame(

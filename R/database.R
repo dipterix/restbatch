@@ -27,7 +27,8 @@ db_init_tables <- function(conn){
   DBI::dbWriteTable(conn, "restbatchlocker", data.frame(
     locked = FALSE,
     timeStamp = as.numeric(Sys.time()),
-    lockedBy = ""
+    lockedBy = "",
+    stringsAsFactors = FALSE
   ))
 
   # always add local user a key
@@ -55,7 +56,8 @@ db_init_tables <- function(conn){
     private_key = keys$private,
     public_key = keys$public,
     date_added = as.numeric(Sys.time()),
-    role = "owner"
+    role = "owner",
+    stringsAsFactors = FALSE
   ))
 
   DBI::dbCreateTable(conn, "restbatchtasksclient", data.frame(
@@ -68,7 +70,8 @@ db_init_tables <- function(conn){
     serverip = "",
     serverport = 0L,
     removed = 1L,
-    time_added = 0.01
+    time_added = 0.01,
+    stringsAsFactors = FALSE
   ))
 
   DBI::dbCreateTable(conn, "restbatchtasksserver", data.frame(
@@ -81,7 +84,8 @@ db_init_tables <- function(conn){
     path = "",
     ncpu = 0,
     clientip = "",
-    time_added = 0.01
+    time_added = 0.01,
+    stringsAsFactors = FALSE
   ))
 }
 
@@ -98,7 +102,8 @@ db_lock <- function(conn, lock_duration = 0.2, wait = Inf){
     DBI::dbWriteTable(conn, "restbatchlocker", data.frame(
       locked = TRUE,
       timeStamp = Sys.time() + lock_duration,
-      lockedBy = conn_name
+      lockedBy = conn_name,
+      stringsAsFactors = FALSE
     ))
     return(TRUE)
   } else {

@@ -256,7 +256,7 @@ client_app <- function(module_id = 'client'){
                     try({kill_server(host = task$submitted_to$host, port = task$submitted_to$port)}, silent = TRUE)
                   })
                 }
-                status <- as.data.frame(task$server_status())
+                status <- as.data.frame(task$server_status(), stringsAsFactors = FALSE)
                 cat("\nCheck server status:\n")
                 print(status)
 
@@ -306,7 +306,7 @@ client_app <- function(module_id = 'client'){
             task$submit(force = TRUE)
 
             cat("\nChecking server status...\n\n")
-            print(as.data.frame(task$server_status()))
+            print(as.data.frame(task$server_status(), stringsAsFactors = FALSE))
 
             showNotification(p("Submitted! Please refresh the task table."), duration = 10,
                              closeButton = TRUE, type = 'message', id = ns('notif'))
