@@ -2,7 +2,7 @@ STATUS_CODE <- list(
   '0' = "init",
   '1' = 'running',
   '2' = 'finish',
-  '-1' = 'cancelled'
+  '-1' = 'canceled'
 )
 
 
@@ -65,7 +65,7 @@ task__submit <- function(task, pack = NA, force = FALSE){
   tryCatch({
     scode <- httr::status_code(res)
   }, error = function(e){
-    stop("Unable to reach the server. Job cancelled.\nAdditional message: ", e$message)
+    stop("Unable to reach the server. Job canceled.\nAdditional message: ", e$message)
   })
 
   try({
@@ -209,8 +209,8 @@ task__resolved <- function(task){
 
     }
 
-    if(isTRUE(status$status %in% "cancelled")){
-      stop("Job has been cancelled by the server.")
+    if(isTRUE(status$status %in% "canceled")){
+      stop("Job has been canceled by the server.")
     }
 
   }, error = function(e){
@@ -220,7 +220,7 @@ task__resolved <- function(task){
     if(s$done + s$error >= task$njobs && s$running == 0){
       return(TRUE)
     } else {
-      stop("\nFailed to get tasks status from the server.\nServer is shutdown or the task is cancelled.\n\nAdditional message: \n", e)
+      stop("\nFailed to get tasks status from the server.\nServer is shutdown or the task is canceled.\n\nAdditional message: \n", e)
     }
 
   })
@@ -434,9 +434,9 @@ task__monitor_rstudio <- function(task, update_freq = 1, ...){
             rstudioapi::jobAddOutput(job = job, output = "\nTask finished\n")
           }
           complete <- TRUE
-        } else if (s$status == "cancelled") {
-          rstudioapi::jobSetState(job = job, state = "cancelled")
-          rstudioapi::jobAddOutput(job = job, output = "\nTask cancelled by the server\n")
+        } else if (s$status == "canceled") {
+          rstudioapi::jobSetState(job = job, state = "canceled")
+          rstudioapi::jobAddOutput(job = job, output = "\nTask canceled by the server\n")
           complete <- TRUE
         }
 
@@ -479,7 +479,7 @@ task__monitor_progress <- function(task, update_freq = 1, ..., title) {
           p$inc(detail = msg, message = s$status, amount = n_f - finished)
           finished <<- n_f
         }
-        complete <- s$status %in% c("finished", "cancelled")
+        complete <- s$status %in% c("finished", "canceled")
         if(complete){
           p$close(s$status)
         }
@@ -523,7 +523,7 @@ task__monitor_callback <- function(task, update_freq = 1, ..., callback) {
           callback(status = s$status, submitted = task$submitted,
                    total = task$njobs, finished = finished, error = s$n_error)
         }
-        complete <- s$status %in% c("finished", "cancelled")
+        complete <- s$status %in% c("finished", "canceled")
         complete
       }, error = function(e){
         callback(status = "callback error", submitted = task$submitted,
@@ -808,7 +808,7 @@ make_client_task_proxy <- function(task){
 #' }
 #' @section Methods:
 #' \describe{
-#' \item{\code{submit}}{submit or re-submit a rask. If \code{'pack'} is true,
+#' \item{\code{submit}}{submit or re-submit a task. If \code{'pack'} is true,
 #' then the task files will be archived before sending to the server. This
 #' option is required when server runs remotely.}
 #' \item{\code{resolved}}{check whether the task has been resolved, a
@@ -830,7 +830,7 @@ make_client_task_proxy <- function(task){
 #' \item{\code{clear_registry}}{clear the registry, usually used to re-use the
 #' task or to re-run the task}
 #' \item{\code{reload_registry}}{reload \code{'reg'} registry under read-only
-#' or writeable modes. If the task has been submitted, please load in
+#' or writable modes. If the task has been submitted, please load in
 #' read-only mode to avoid file corrects}
 #' \item{\code{remove}}{remove the whole task from the hard drive}
 #' }

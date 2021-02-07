@@ -290,7 +290,7 @@ database_restore <- function(bkup, backup_current = TRUE, tables = c('user', 'cl
         tbl
       })
       if(nrow(tbl_old)){
-        tbl_old$status[tbl_old$status != 2] <- -1 # cancelled
+        tbl_old$status[tbl_old$status != 2] <- -1 # canceled
         DBI::dbAppendTable(conn_current, name = "restbatchtasksserver", tbl_old)
       }
     }

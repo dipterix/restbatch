@@ -42,7 +42,7 @@ function(req, res){
   safe_run({
     userid <- req$HEADERS[["restbatch.userid"]]
     status <- req$body$status
-    stopifnot(isTRUE(status %in% c("running", "init", "finish", "valid", "all", "cancelled")))
+    stopifnot(isTRUE(status %in% c("running", "init", "finish", "valid", "all", "canceled")))
 
     tbl <- restbatch::handler_query_task(userid, status = status)
     tbl

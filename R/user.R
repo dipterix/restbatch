@@ -13,7 +13,7 @@ keygen <- function(){
 #' Give additional user server access
 #' @description See examples on how to give additional remote users access.
 #' @param userid user's ID
-#' @param role role of the user; choices as 'user' (deafult) and 'admin'
+#' @param role role of the user; choices as 'user' (default) and 'admin'
 #' @param password a secret code to encode/decode the private key. This is not
 #' the user's password. It is just some code that only is shared between the
 #' system admin and the target user. If \code{password} is not blank, then
@@ -28,7 +28,7 @@ keygen <- function(){
 #' \code{overwrite}. If the user already exists, \code{force=FALSE} will raise
 #' errors or prompt for options. If \code{force=TRUE}, then the key will be
 #' added. Depending on \code{overwrite} choice, if \code{overwrite} is set to
-#' false, then multiple keys will coexit for the same user and they can use
+#' false, then multiple keys will coexist for the same user and they can use
 #' any one to file task requests.
 #'
 #' @examples

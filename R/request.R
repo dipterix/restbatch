@@ -18,8 +18,8 @@ prepare_request <- function(){
 #' @description \describe{
 #' \item{\code{request_server}}{sends general request with authentication
 #' tokens ready in the request headers}
-#' \item{\code{request_task_list}}{get list of tasks of your current userid
-#' from the server}
+#' \item{\code{request_task_list}}{get list of tasks of your current user ID
+#' (\code{userid}) from the server}
 #' }
 #' @param protocol,host,port,path server location-related configurations, the
 #' 'url' of request will be \code{protocol://host:port/path}
@@ -167,7 +167,7 @@ request_task_list <- function(task_status = 'valid', host = default_host(allow0 
 
   res <- data.frame(
     name = as.character(content$name),
-    status = as.character(factor(content$status, levels = c(0,1,2,-1), labels = c("init", "running", "finish", "cancelled"))),
+    status = as.character(factor(content$status, levels = c(0,1,2,-1), labels = c("init", "running", "finish", "canceled"))),
     error = as.logical(content$error),
     packed = as.logical(content$packed),
     time_added = as.POSIXct(content$time_added, origin="1970-01-01"),

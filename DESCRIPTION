@@ -1,6 +1,6 @@
 Package: restbatch
 Type: Package
-Title: A RESTful Framework to Schedule R Batch Jobs
+Title: A Simple 'RESTful' Web Service to Schedule R Batch Jobs
 Version: 0.1.0
 Authors@R: c(
     person("Zhengjia", "Wang", email = "dipterix.wang@gmail.com", role = c("aut", "cre"))
@@ -9,6 +9,7 @@ Description: More about what it does (maybe more than one line)
     Use four spaces when indenting paragraphs within the Description.
 License: GPL-3
 Encoding: UTF-8
+Language: en-US
 LazyData: true
 RoxygenNote: 7.1.1
 Imports:

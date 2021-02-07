@@ -13,7 +13,7 @@ list_tasks(
 \arguments{
 \item{status}{filter task status on the server, choices are \code{'valid'},
 \code{'init'} (submitted, waiting to run), \code{'running'} (running
-task), \code{'finish'} (finished task), and \code{'cancelled'} (cancelled
+task), \code{'finish'} (finished task), and \code{'canceled'} (canceled
 by the server)}
 
 \item{order}{whether to order by date submitted (in descending order);

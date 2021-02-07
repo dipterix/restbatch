@@ -25,7 +25,7 @@ add_pem(pem_file, password = "", username = get_username())
 \arguments{
 \item{userid}{user's ID}
 
-\item{role}{role of the user; choices as 'user' (deafult) and 'admin'}
+\item{role}{role of the user; choices as 'user' (default) and 'admin'}
 
 \item{password}{a secret code to encode/decode the private key. This is not
 the user's password. It is just some code that only is shared between the
@@ -46,7 +46,7 @@ exists in the database}
 \code{overwrite}. If the user already exists, \code{force=FALSE} will raise
 errors or prompt for options. If \code{force=TRUE}, then the key will be
 added. Depending on \code{overwrite} choice, if \code{overwrite} is set to
-false, then multiple keys will coexit for the same user and they can use
+false, then multiple keys will coexist for the same user and they can use
 any one to file task requests.}
 }
 \description{

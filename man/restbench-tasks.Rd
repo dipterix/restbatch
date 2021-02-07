@@ -47,7 +47,7 @@ directory into the memory}
 \section{Methods}{
 
 \describe{
-\item{\code{submit}}{submit or re-submit a rask. If \code{'pack'} is true,
+\item{\code{submit}}{submit or re-submit a task. If \code{'pack'} is true,
 then the task files will be archived before sending to the server. This
 option is required when server runs remotely.}
 \item{\code{resolved}}{check whether the task has been resolved, a
@@ -69,7 +69,7 @@ function will block the session waiting for results.}
 \item{\code{clear_registry}}{clear the registry, usually used to re-use the
 task or to re-run the task}
 \item{\code{reload_registry}}{reload \code{'reg'} registry under read-only
-or writeable modes. If the task has been submitted, please load in
+or writable modes. If the task has been submitted, please load in
 read-only mode to avoid file corrects}
 \item{\code{remove}}{remove the whole task from the hard drive}
 }

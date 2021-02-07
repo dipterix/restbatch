@@ -308,7 +308,7 @@ start_server_internal <- function(
     dereg_tasks <- c(ready_tasks, running_tasks)
 
     if(length(dereg_tasks)){
-      # There are running jobs, stop them (set their status to "cancelled")
+      # There are running jobs, stop them (set their status to "canceled")
       conn <- db_ensure(close = FALSE)
 
       for(item in dereg_tasks){
@@ -478,10 +478,10 @@ findPort <- function (port, mustWork = NA) {
 #' \item{require_auth}{whether default authentication is on. The default
 #' authentication uses 'openssl' that sends tokens in the request headers.}
 #' \item{anonymous_request}{whether to allow default tokens; works for a quick
-#' set up scenarios like debugging, runing on local machines, but will
+#' set up scenarios like debugging, running on local machines, but will
 #' introduce security issues is deployed on public addresses.}
 #' \item{modules_require_auth}{which modules require default authentications;
-#' use comma to seperate.}
+#' use comma to separate.}
 #' \item{request_timeout}{part of authentication system. When default
 #' authentications is on, each request header needs to include a timestamp
 #' and an encrypted token of that timestamp. The server will block the requests

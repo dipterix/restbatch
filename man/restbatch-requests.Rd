@@ -52,7 +52,7 @@ check the response contents.
 \describe{
 \item{\code{request_server}}{sends general request with authentication
 tokens ready in the request headers}
-\item{\code{request_task_list}}{get list of tasks of your current userid
-from the server}
+\item{\code{request_task_list}}{get list of tasks of your current user ID
+(\code{userid}) from the server}
 }
 }

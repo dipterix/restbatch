@@ -1,4 +1,4 @@
-# A small RESTful framework to run batch R scripts in the background
+# A small 'RESTful' framework to run batch R scripts in the background
 
 <!-- badges: start -->
   [![R-CMD-check](https://github.com/dipterix/restbench/workflows/R-CMD-check/badge.svg)](https://github.com/dipterix/restbench/actions)
@@ -6,18 +6,16 @@
 
 > This package is still under development. A road map will be built on Github soon.
 
-Start a simple [RESTful](https://restfulapi.net/) R server running batch jobs anywhere to unleash the computing power
+Starts simple '[RESTful](https://restfulapi.net/)' R servers running batch jobs anywhere to unleash the computing power:
 
 * On local machine
-* Runs within a lan that has idle computers or servers (see [remote setups](#remote-setups))
+* Runs within a lab that has idle computers or servers (see [remote setups](#remote-setups))
 * Runs on a public server, see [safety](#safety) and [remote setups](#remote-setups) (under construction)
 
-The package has the following features
+The package automatically queues and schedules R tasks that would run hours or days without blocking the main session. It runs even if you exit the main R session. The tasks can be monitored and inspected in multiple ways.
 
-* Schedule tasks without blocking the session
-* Runs even the main R session is quitted
-* Easy to check task status on browsers or to be integrated into websites (REST api)
-* Customizable (see the sections below)
+Try `restbatch` if you need to run R scripts in the background that take minutes, hours, or even days. Don't use `restbatch` if the tasks are micro-operations (use `clustermq` instead).
+
 
 ## 1. Installation
 
@@ -32,7 +30,7 @@ The package is to be on CRAN once fully tested
 
 ### 2.1 Start a `restbatch` server
 
-In R or RStudio console
+In `R` or `RStudio` console
 
 ```r
 library(restbatch)
@@ -104,7 +102,7 @@ library(restbatch)
 task <- restore_task2("e5f6226c9f2e6874dd3a7f0944b13dcb__Test")
 ```
 
-To obtain the task results, it is always a good practice to check whether a task has been finished ot not. This could be achieved via methods `resolved` or `server_status` (assuming the server is still running).
+To obtain the task results, it is always a good practice to check whether a task has been finished or not. This could be achieved via methods `resolved` or `server_status` (assuming the server is still running).
 
 ```r
 task$resolved()
@@ -127,7 +125,7 @@ Kill the server right now
 kill_server(host = "127.0.0.1", port = 7033)
 ```
 
-All unfinished tasks will be marked as `cancelled` immediately. You need to submit the task again to resume them (see section 2.5 below).
+All unfinished tasks will be marked as `canceled` immediately. You need to submit the task again to resume them (see section 2.5 below).
 
 
 If you have previously set the default `host` and `port`, simply call `kill_server()`
@@ -151,7 +149,7 @@ source(system.file('dashboards/client/app.R', package = 'restbatch'))
 
 <img src="https://user-images.githubusercontent.com/8163576/106888900-d6dabe80-66ac-11eb-8c1f-27716a3a7112.png" width="50%">
 
-Alternatively, `task$monitor()` function integrates RStudio, creating job panels in via package `rstudioapi`.
+Alternatively, `task$monitor()` function integrates `RStudio`, creating job panels in via package `rstudioapi`.
 
 ```r
 # install.packages("rstudioapi")
@@ -160,7 +158,7 @@ task$monitor()
 
 ### 2.5 Resume a task
 
-If a server is killed, all unfinished tasks will be cancelled. The tasks can be resumed without re-run everything. This requires to submit with flag `pack=FALSE` and `force=TRUE`:
+If a server is killed, all unfinished tasks will be canceled. The tasks can be resumed without re-run everything. This requires to submit with flag `pack=FALSE` and `force=TRUE`:
 
 ```r
 task$submit(pack=FALSE, force=TRUE)
