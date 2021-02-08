@@ -26,10 +26,12 @@ restbatch:::start_server_internal(host = "10.0.0.132", port = 7034, settings = '
 
 default_host('10.0.0.217')
 
+
 task <- restbatch:::new_task2(function(x){
-  Sys.sleep(1)
-  Sys.getpid()
+  x + Sys.getpid()
 }, x = 1:10, task_name = "Test"); task
+
+
 # task$reload_registry(TRUE)
 # task$reg$cluster.functions <- batchtools::makeClusterFunctionsSocket(1)
 # batchtools::submitJobs(reg = task$reg)
@@ -38,7 +40,7 @@ task <- restbatch:::new_task2(function(x){
 # task$status()->s; s
 # task$collect()
 # task$host <- "10.0.0.132"
-task$port <- 7034
+# task$port <- 7034
 
 # res <- task$validate(); res
 res <- task$submit(); httr::content(res)
@@ -64,9 +66,11 @@ httr::content(res)
 task$server_status()
 
 restbatch::request_task_list()
-task <- restbatch:::restore_task('64d5010ac8f40ebd109b31817f2ccb04__noname__eODgK1F4aToedcFG')
+task <- restbatch:::restore_task('22dbdc9ec25174a768c15e03c7356780__Noname__6463c71c4e020491')
 task$resolved()
 task$local_status()
+
+task$server_status()
 
 task$..view()
 task$collect()

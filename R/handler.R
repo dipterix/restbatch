@@ -81,12 +81,12 @@ run_task <- function(task, userid){
   task$..server_status <- 1L
   db_update_task_server2(task = task, userid = userid)
 
-  task$reload_registry(TRUE)
-  reg <- task$reg
-
   cat("Sending task: ", task$task_name, '\n')
 
   settings <- getOption("restbatch.settings")
+
+  task_dir <- task$task_dir
+  task_root <- task$task_root
 
   f <- future::future({
     ..ns <- asNamespace("restbatch")
@@ -95,6 +95,8 @@ run_task <- function(task, userid){
     # Override cluster functions here (inside of future)
     # workers <- getOption('restbatch.max_concurrent_jobs', 1L)
     # reg$cluster.functions <- batchtools::makeClusterFunctionsSocket(workers, 1)
+
+    reg <- batchtools::loadRegistry(task_dir, work.dir = task_root, make.default = FALSE, writeable = TRUE)
 
     eval(parse(file = getOption("restbatch.batch_cluster")))
 
@@ -107,7 +109,7 @@ run_task <- function(task, userid){
     batchtools::waitForJobs(reg = reg)
 
     cat("Sent: ", task$task_name, '\n')
-  }, packages = c("restbatch"))
+  }, packages = c("restbatch"), seed = TRUE)
 
   list(
     task = task,
@@ -251,7 +253,7 @@ authenticate <- function(req, res){
     request_time <- stringr::str_sub(authorization, end = 23)
 
     request_age <- compare_timeStamp(request_time)
-    if(!isTRUE(abs(request_age) < getOption("restbatch.request_timeout", Inf))){
+    if(!isTRUE(abs(request_age) < getOption("restbatch.keep_alive", Inf))){
       # This request is made long time ago, fail the auth
       stop("Request expired. Please re-auth.")
     }
@@ -378,7 +380,7 @@ handler_validate_auth <- function(req, res) {
 #
 #   time <- auth$restbatch.timestamp
 #   request_age <- compare_timeStamp(time)
-#   if(!isTRUE(abs(request_age) < getOption("restbatch.request_timeout", Inf))){
+#   if(!isTRUE(abs(request_age) < getOption("restbatch.keep_alive", Inf))){
 #     # This request is made long time ago or faked, fail the auth
 #     res$status <- 401 # Unauthorized
 #     return(list(error="Your request has invalid timestamp. Please make sure your system time is synchronized to the world time."))

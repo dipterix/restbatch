@@ -2,6 +2,7 @@
 # In the run time, .globals will be replaced with fastmap2
 .globals <- new.env()
 
+
 .onLoad <- function(libname, pkgname){
   pkg <- getNamespace(pkgname)
   sess_str <- rand_string(15)
@@ -44,23 +45,6 @@ print.restbatch.result <- function(x, ...){
   cat("Display details:\n\n")
   attributes(x) <- NULL
   print(x)
-}
-
-#' Add a task to a queue
-#' @description called by server internally, not supposed to be called directly.
-#' @param task a task object
-#' @param userid user ID
-#' @return None
-#' @export
-queue_task <- function(task, userid){
-  .globals <- get('.globals')
-  .globals$tasks$add(list(task = task, userid = userid))
-
-  # Watch task
-  if(.globals$watchers == 0){
-    watch_tasks()
-  }
-  invisible()
 }
 
 

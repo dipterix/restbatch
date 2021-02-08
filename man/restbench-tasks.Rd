@@ -17,7 +17,8 @@ passed to \code{\link[batchtools]{batchMap}} function}
 \item{task_name}{a readable name for the task; default is \code{'Noname'}.}
 }
 \value{
-A locked proxy (environment) that wraps batch task with the following
+If the task does not exist, the returns \code{NULL}, otherwise
+returns a locked environment proxy that wraps batch task with the following
 fields and methods.
 }
 \description{

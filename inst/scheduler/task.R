@@ -63,7 +63,11 @@ function(req, res){
 
     # get database connection and ensure proper disconnection
     conn <- ns$db_ensure(close = FALSE)
-    on.exit({ DBI::dbDisconnect(conn) })
+    ns$db_lock(conn)
+    on.exit({
+      ns$db_unlock(conn)
+      DBI::dbDisconnect(conn)
+    })
 
     # query the task status
     # userid and task_name only contain letters, digits and -_, so quote them and it's safe against SQL injection
@@ -71,6 +75,11 @@ function(req, res){
       'SELECT * FROM restbatchtasksserver WHERE userid="%s" AND name="%s"',
       userid, task_name
     ))
+
+    # Close now as restoring task may need connection to DB
+    ns$db_unlock(conn)
+    DBI::dbDisconnect(conn)
+    on.exit({})
 
     # just hide some information
     tbl$path <- NULL
@@ -105,7 +114,7 @@ function(req, res){
     ns <- asNamespace('restbatch')
 
     userid <- ns$clean_db_entry(req$HEADERS[["restbatch.userid"]], msg = '[1] Invalid user ID')
-    task_name <- ns$clean_db_entry(req$body$task_name, disallow = '[^a-zA-Z0-9-_]', msg = '[5] Invalid task name')
+    task_name <- ns$clean_db_entry(req$body$task_name, disallow = '[^a-zA-Z0-9-_]', msg = '[6] Invalid task name')
     task <- ns$restore_task(task_name = task_name, userid = userid, .client = FALSE, .update_db = TRUE)
 
     if(!task$..server_packed){
@@ -134,13 +143,16 @@ function(req, res){
     ns <- asNamespace('restbatch')
 
     userid <- ns$clean_db_entry(req$HEADERS[["restbatch.userid"]], msg = '[1] Invalid user ID')
-    task_name <- ns$clean_db_entry(req$body$task_name, disallow = '[^a-zA-Z0-9-_]', msg = '[5] Invalid task name')
+    task_name <- ns$clean_db_entry(req$body$task_name, disallow = '[^a-zA-Z0-9-_]', msg = '[7] Invalid task name')
     task <- ns$restore_task(task_name = task_name, userid = userid, .client = FALSE, .update_db = TRUE)
 
     # This might cause batchtools to hang?
     if(!is.null(task)){
-      if(dir.exists(task$task_dir)){
+      if(isTRUE(dir.exists(task$task_dir))){
         unlink(task$task_dir, recursive = TRUE)
+      }
+      if(isTRUE(file.exists(paste0(task$task_dir, '.zip')))){
+        unlink(paste0(task$task_dir, '.zip'))
       }
       try({
         db_update_task_server2(task, userid = userid)

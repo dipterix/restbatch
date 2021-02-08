@@ -10,7 +10,6 @@ modules:
   info: '{system.file("scheduler/info.R", package = "restbatch")}'
 options:
   debug: yes
-  protocol: http
   require_auth: no
   anonymous_request: no
   modules_require_auth: 'task, validate'
@@ -18,7 +17,7 @@ options:
   max_concurrent_jobs: 4
   task_queue_interval: 1
   max_release_tasks_per_second: 10
-  request_timeout: .inf
+  keep_alive: .inf
   task_root: '{restbatch::restbatch_getopt("task_root")}'
   max_nodetime: 864000
   func_newjob: restbatch:::run_task

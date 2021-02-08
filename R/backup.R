@@ -6,9 +6,7 @@ db_validate <- function(conn){
     if(missing(conn)){
       conn <- db_ensure(close = FALSE)
       on.exit({
-        try({
-          DBI::dbDisconnect(conn)
-        }, silent = TRUE)
+        try({ DBI::dbDisconnect(conn) }, silent = TRUE)
       })
     }
 

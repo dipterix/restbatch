@@ -2,9 +2,11 @@
 
 rhome=$1
 
-if [ -z "$rhome" ]
-then
+if [ -z "$rhome" ]; then
+  echo "R bin not specified. Trying to locate R."
   rhome=$(which R)
+else
+  echo "R is specified: $rhome"
 fi
 
 temp_file=$(dirname "$0")
@@ -17,6 +19,8 @@ cd "$temp_file"
 # else
 #   echo "Use local 'settings.yaml':"
 # fi
+
+
 
 nohup "$rhome" CMD BATCH --no-save --no-restore "$temp_file/start_server.R" "$temp_file/server.log" & disown -a
 

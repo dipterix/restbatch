@@ -77,7 +77,7 @@ db_init_tables <- function(conn){
   DBI::dbCreateTable(conn, "restbatchtasksserver", data.frame(
     name = "",
     userid = "",
-    status = 1L, # 0: inited, 1: running, 2: completed/error
+    status = 1L, # 0: inited, 1: running, 2: completed/error -1: canceled
     error = 0L,
     removed = 1L,
     packed = 0L,
@@ -94,57 +94,32 @@ dn_conn_ptr <- function(conn){
 }
 
 db_lock <- function(conn, lock_duration = 0.2, wait = Inf){
-  tbl <- DBI::dbListTables(conn)
 
-  conn_name <- dn_conn_ptr(conn)
-
-  if(!"restbatchlocker" %in% tbl){
-    DBI::dbWriteTable(conn, "restbatchlocker", data.frame(
-      locked = TRUE,
-      timeStamp = Sys.time() + lock_duration,
-      lockedBy = conn_name,
-      stringsAsFactors = FALSE
-    ))
-    return(TRUE)
-  } else {
-    now <- as.numeric(Sys.time())
-
-    # db <- dplyr::tbl(conn, "restbatchlocker")
-    # Replace locker if
-    res <- DBI::dbSendQuery(conn, sprintf(
-      'UPDATE restbatchlocker SET locked=1 , timeStamp=%.3f , lockedBy="%s" WHERE locked=0 OR lockedBy="%s" OR timeStamp<%.3f;',
-      now + lock_duration, conn_name, conn_name, now
-    ))
-    info <- DBI::dbGetInfo(res)
-    DBI::dbClearResult(res)
-
-    if(info$rows.affected > 0){
-      return(TRUE)
-    }
-
-    while(info$rows.affected == 0){
-
-      if(as.numeric(Sys.time()) - now > wait){
-        stop("Acquire locker timeout.")
-        break
-      }
-      res <- DBI::dbSendQuery(conn, sprintf(
-        'UPDATE restbatchlocker SET locked=1 , timeStamp=%.3f , lockedBy="%s" WHERE locked=0 OR lockedBy="%s" OR timeStamp<%.3f;',
-        as.numeric(Sys.time()) + lock_duration, conn_name, conn_name, as.numeric(Sys.time())
-      ))
-      info <- DBI::dbGetInfo(res)
-      DBI::dbClearResult(res)
-
-      if(info$rows.affected > 0){
-        return(TRUE)
-      }
-
-      Sys.sleep(0.05)
-    }
-
-    return(info$rows.affected > 0)
+  locker <- getOption("restbach_locker", NULL)
+  if(is.null(locker)){
+    locker <- dipsaus::fastmap2()
+    options("restbach_locker" = locker)
   }
 
+  conn_name <- dn_conn_ptr(conn)
+  now <- as.numeric(Sys.time())
+
+  # get current lock information
+  locker <- getOption("restbach_locker", dipsaus::fastmap2())
+
+  # check if locked
+  while(db_locked()){
+    if(as.numeric(Sys.time()) - now > wait){
+      stop("Database is locked. Cannot access.")
+    }
+    Sys.sleep(0.01)
+  }
+
+  locker$conn <- conn_name
+  locker$now <- as.numeric(Sys.time())
+  locker$duration <- lock_duration
+
+  return(TRUE)
 }
 
 db_ensure <- function(close = FALSE){
@@ -205,34 +180,35 @@ db_ensure <- function(close = FALSE){
 }
 
 db_locked <- function(conn){
-  # Assume sure table exists
-  conn_name <- dn_conn_ptr(conn)
-  now <- as.numeric(Sys.time())
 
-  res <- DBI::dbSendQuery(conn, sprintf(
-    'SELECT count(*) AS count FROM restbatchlocker WHERE locked=0 OR lockedBy="%s" OR timeStamp<%.3f;',
-    conn_name, now
-  ))
-  info <- DBI::dbFetch(res)
-  DBI::dbClearResult(res)
-
-  if(info$count == 1){
-    return(FALSE)
-  } else {
-    return(TRUE)
+  locker <- getOption("restbach_locker", NULL)
+  if(is.null(locker)){
+    locker <- dipsaus::fastmap2()
+    options("restbach_locker" = locker)
   }
+  if(is.null(locker$conn) || !is.numeric(locker$now) || !is.numeric(locker$duration)){
+    return(FALSE)
+  }
+
+  conn_name <- dn_conn_ptr(conn)
+  if(isTRUE(locker$conn == conn_name)){
+    return(FALSE)
+  }
+  if(locker$now + locker$duration < as.numeric(Sys.time())){
+    return(FALSE)
+  }
+  return(TRUE)
 }
 
 db_unlock <- function(conn){
-  if(!db_locked(conn)){
-    now <- as.numeric(Sys.time())
-    conn_name <- dn_conn_ptr(conn)
-    res <- DBI::dbSendQuery(conn, sprintf(
-      'UPDATE restbatchlocker SET locked=0 WHERE locked=1 OR lockedBy="%s" OR timeStamp<%.3f;',
-      conn_name, now
-    ))
-    DBI::dbClearResult(res)
+
+  locker <- getOption("restbach_locker", NULL)
+  if(is.null(locker)){
+    locker <- dipsaus::fastmap2()
+    options("restbach_locker" = locker)
   }
+  locker$conn <- NULL
+
   invisible()
 }
 
@@ -325,6 +301,10 @@ db_adduser <- function(userid, private_key, role = c("user", "admin"),
     userid, username, private_key, pubkey, as.numeric(Sys.time()), role
   ))
 
+  db_unlock(conn)
+  DBI::dbDisconnect(conn)
+  on.exit({})
+
   invisible()
 }
 
@@ -353,6 +333,11 @@ db_getuser <- function(userid, unique = FALSE){
   }
   existing_user <- DBI::dbFetch(res)
   DBI::dbClearResult(res)
+
+
+  DBI::dbDisconnect(conn)
+  on.exit({})
+
   existing_user
 }
 
@@ -424,6 +409,9 @@ db_get_task <- function(task_name, userid, client = TRUE, status = c("running", 
 
     tbl <- DBI::dbFetch(res)
     DBI::dbClearResult(res)
+
+    DBI::dbDisconnect(conn)
+    on.exit({})
     return(tbl)
 
   } else {
@@ -464,6 +452,9 @@ db_get_task <- function(task_name, userid, client = TRUE, status = c("running", 
 
     tbl <- DBI::dbFetch(res)
     DBI::dbClearResult(res)
+
+    DBI::dbDisconnect(conn)
+    on.exit({})
     return(tbl)
 
   }
@@ -519,6 +510,11 @@ db_update_task_client <- function(task){
   }
   info <- DBI::dbGetInfo(res)
   DBI::dbClearResult(res)
+
+  db_unlock(conn)
+  DBI::dbDisconnect(conn)
+  on.exit({})
+
   invisible(info)
 
 }
@@ -548,6 +544,10 @@ db_update_task_server2 <- function(task, userid){
 
   info <- DBI::dbGetInfo(res)
   DBI::dbClearResult(res)
+
+  DBI::dbDisconnect(conn)
+  on.exit({})
+
   invisible(info)
 }
 
@@ -601,6 +601,11 @@ db_update_task_server <- function(task, req){
   res <- DBI::dbSendQuery(conn, sql_str)
   info <- DBI::dbGetInfo(res)
   DBI::dbClearResult(res)
+
+  db_unlock(conn)
+  DBI::dbDisconnect(conn)
+  on.exit({})
+
   invisible(info)
 }
 
@@ -653,6 +658,9 @@ summarize_server <- function(include_expired = TRUE){
   res <- DBI::dbSendQuery(conn, sprintf('SELECT count(*) as count FROM restbatchtasksserver WHERE status=0 %s;', extra_cond))
   waiting <- DBI::dbFetch(res)
   DBI::dbClearResult(res)
+
+  DBI::dbDisconnect(conn)
+  on.exit({})
 
   c(
     waiting = waiting$count,

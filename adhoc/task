@@ -399,7 +399,7 @@ queue_task <- function(task, userid){
 
   # Watch task
   if(.globals$watchers == 0){
-    watch_tasks()
+    watch_later()
   }
 
 }

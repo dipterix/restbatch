@@ -187,21 +187,76 @@ restbatch_confpath <- function(cfile = 'settings.yaml'){
   normalizePath(file.path(d, cfile), mustWork = FALSE)
 }
 
-.onLoad <- function(libname, pkgname) {
-  # backports::import(pkgname, c("R_user_dir", "deparse1"))
-  pkg <- getNamespace(pkgname)
-  sess_str <- rand_string(15)
-  assign('.session_string', sess_str, envir = pkg)
-  s <- load_setting(reset_temp = TRUE)
-  assign('.settings', s, envir = pkg)
+# -------- Server settings -----------------
 
-  cenv <- environment(.subset2(s, 'reset'))
+#' Generate a sample configuration file
+#' @param file file path or a connection to write the configurations to.
+#' @return None
+#' @export
+conf_sample <- function(file = stdout()){
+  s <- readLines(system.file('default_settings.yaml', package = 'restbatch'))
+  writeLines(s, file)
+  invisible()
+  # yaml::write_yaml(list(
+  #   modules = list(
+  #     task = "{system.file(\"scheduler/task.R\", package = \"restbatch\")}",
+  #     validate = "{system.file(\"scheduler/validate.R\", package = \"restbatch\")}"
+  #   ),
+  #   options = list(
+  #     debug = FALSE,
+  #     require_auth = TRUE,
+  #     modules_require_auth = "task, validate",
+  #     request_timeout = Inf,
+  #     task_root = "{restbatch::restbatch_getopt(\"task_root\")}",
+  #     max_nodetime = 864000L,
+  #     func_newjob = "restbatch:::run_task",
+  #     func_validate_server = "restbatch::handler_validate_server"
+  #   )), file)
+}
+
+
+
+load_server_settings <- function(settings){
+  if(!is.list(settings)){
+    settings <- yaml::read_yaml(settings)
+  }
+  modules <- settings$modules
+  opts <- settings$options
+  server_scripts <- settings$server_scripts
+
+  for(nm in names(opts)){
+
+    val <- opts[[nm]]
+    if(is.character(val)){
+      val <- glue::glue(val)
+    }
+
+    do.call("options", structure(list(val), names = sprintf('restbatch.%s', nm)))
+  }
+
+  if('https' %in% settings$protocol){
+    options("restbatch.protocol" = 'https')
+  } else {
+    options("restbatch.protocol" = 'http')
+  }
+
+  # Settings to set options on modules need authentication
+  modules_require_auth <- unlist(
+    stringr::str_split(getOption("restbatch.modules_require_auth",
+                                 paste(names(modules), collapse = ',')), "[, ]+"))
+  require_auth <- getOption("restbatch.require_auth", TRUE)
+  if(!require_auth){
+    modules_require_auth <- NULL
+  }
+  options('restbatch.modules_require_auth_list' = modules_require_auth)
+  options("restbatch.settings" = settings)
+
+  # scripts related to server configurations
+  startup_script <- glue::glue(server_scripts$startup_script)
+  options("restbatch.startup_script" = startup_script[file.exists(startup_script)])
+
+  batch_cluster <- glue::glue(server_scripts$batch_cluster)
+  options("restbatch.batch_cluster" = batch_cluster[file.exists(batch_cluster)])
 
 
 }
-
-# .onUnload <- function(libpath){
-#   s <- load_setting(reset_temp = TRUE)
-#   sess_str <- get('.session_string')
-# }
-

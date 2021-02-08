@@ -1,413 +1,3 @@
-
-get_ip <- function(get_public = NA, timeout = 3){
-  ip <- list(
-    available = c('127.0.0.1', '0.0.0.0'),
-    public = if(isFALSE(get_public)) { NULL } else { getOption("restbench.public_ip", NULL) }
-  )
-  try({
-    s <- switch (
-      get_os(),
-      'windows' = {
-        s <- system("ipconfig", intern=TRUE)
-        s <- stringr::str_extract(s, "IPv4 Address.*[0-9]{1,3}\\.[0-9]{1,3}\\.[0-9]{1,3}\\.[0-9]{1,3}.*")
-        s <- s[!is.na(s)]
-        stringr::str_extract(s, '[0-9]{1,3}\\.[0-9]{1,3}\\.[0-9]{1,3}\\.[0-9]{1,3}')
-      },
-      'darwin' = {
-        s <- system("ifconfig 2>&1", intern = TRUE)
-        s <- stringr::str_extract(s, "inet.*[0-9]{1,3}\\.[0-9]{1,3}\\.[0-9]{1,3}\\.[0-9]{1,3}")
-        s <- s[!is.na(s)]
-        # extract the first one as the second is mask
-        stringr::str_extract(s, '[0-9]{1,3}\\.[0-9]{1,3}\\.[0-9]{1,3}\\.[0-9]{1,3}')
-      }, {
-        s <- system("ip addr", intern = TRUE)
-        s <- stringr::str_extract(s, "inet.*[0-9]{1,3}\\.[0-9]{1,3}\\.[0-9]{1,3}\\.[0-9]{1,3}")
-        s <- s[!is.na(s)]
-        # extract the first one as the second is mask
-        stringr::str_extract(s, '[0-9]{1,3}\\.[0-9]{1,3}\\.[0-9]{1,3}\\.[0-9]{1,3}')
-      }
-    )
-    ip$available <- c(ip$available, s[!is.na(s)])
-  }, silent = TRUE)
-
-  # also use ipify
-  if(isTRUE(get_public)){
-    ip$public <- getOption("restbench.public_ip", try({
-      res <- httr::GET("https://api.ipify.org?format=json", httr::timeout(timeout))
-      res <- httr::content(res, encoding = 'UTF-8')
-      s <- res$ip
-      s <- stringr::str_extract(s, "[0-9]{1,3}\\.[0-9]{1,3}\\.[0-9]{1,3}\\.[0-9]{1,3}")
-      s <- s[!is.na(s)]
-      options("restbench.public_ip" = s)
-      s
-    }, silent = TRUE))
-  }
-
-  ip$available <- unique(ip$available)
-  ip
-}
-
-host_is_local <- function(host, include_public = NA, ...){
-  host %in% unlist(get_ip(get_public = include_public, ...))
-}
-
-
-watch_tasks <- function(){
-
-  debug <- getOption('restbatch.debug', FALSE)
-  release_speed <- as.numeric(getOption('restbatch.max_release_tasks_per_second', 10.0))
-
-  if(.globals$paused){
-    if(debug){
-      cat("Watch dog is sleeping.\n")
-    }
-    return(invisible())
-  }
-
-  task_names <- names(.globals$running)
-
-  for(nm in task_names){
-    item <- .globals$running[[nm]]
-
-    if(is.list(item) && !is.null(item$task)){
-      # check
-      # 1. submitted, no error
-      # 2. resolved?
-
-      remove_task <- FALSE
-      ..server_status <- 1L
-
-      if(future::resolved(item$future)){
-        tryCatch({
-          future::value(item$future)
-
-          if(isTRUE(item$task$..server_packed) && isTRUE(item$packing)){
-            # package finished
-            cat("Task ", item$task$task_name, " packed! Updating the database.\n")
-            remove_task <- TRUE
-            ..server_status <- 2L
-          } else if(!isTRUE(item$task$..server_packed)) {
-            cat("Task ", item$task$task_name, " finished, updating server database\n")
-            remove_task <- TRUE
-            ..server_status <- 2L
-          } else {
-            # finished, but need to pack
-            cat("Task ", item$task$task_name, " finished, packing the result folder.\n")
-            item$packing <- TRUE
-            item$future <- future::future({
-              item$task$zip(target = paste0(item$task$task_dir, '.zip'))
-            })
-            remove_task <- FALSE
-          }
-
-        }, error = function(e){
-          cat("Error while submitting/packing the task:", item$task$task_name,'\n')
-          cat("Error message: ", e$message,'\n')
-          cat("Removing the task from the queue, set status as 'init'...",'\n')
-          remove_task <<- TRUE
-          ..server_status <<- -1L
-        })
-      }
-
-      if(remove_task){
-        tryCatch({
-          item$task$..server_status <- ..server_status
-          db_update_task_server2(task = item$task, userid = item$userid)
-          .subset2(.globals$running, 'remove')(nm)
-        }, error = function(e){
-          message("Error while updating the database. Force dropping the task... (", e$message,')\n')
-          .subset2(.globals$running, 'remove')(nm)
-        })
-        Sys.sleep(0.1)
-        release_speed <- release_speed - 1
-        if(release_speed <= 0){
-          break
-        }
-      }
-
-    }
-
-  }
-
-
-  if(.globals$tasks$size() > 0){
-
-    smry <- summarize_server(include_expired = FALSE)
-    running_tasks <- smry[['running']]
-    max_tasks <- getOption("restbatch.max_concurrent_tasks", 1L)
-
-    if(max_tasks > running_tasks){
-
-      cat("Available slot(s):", max_tasks - running_tasks, ".\n")
-
-      # run the first max_tasks-running_tasks tasks
-      tasks <- .globals$tasks$mremove(max_tasks - running_tasks)
-
-      # This is a bad name, will change it later to handler_submittask
-      run_task <- getOption('restbatch.func_newjob', "restbatch::run_task")
-      if(!is.function(run_task)){
-        run_task <- eval(parse(text=run_task))
-      }
-
-      lapply(tasks, function(item){
-        if(is.null(item)){ return() }
-        cat("Starting task:", item$task$task_name, '\n')
-
-        res <- run_task(item$task, userid = item$userid)
-        .globals$running[[item$task$task_name]] <- dipsaus::list_to_fastmap2(res)
-
-      })
-    }
-
-  }
-
-
-  watch_later()
-
-}
-
-watch_later <- function(){
-
-  if(.globals$paused){
-    return()
-  }
-
-  if(.globals$watchers == 0){
-
-    interval <- getOption('restbatch.task_queue_interval', 1)
-    interval <- max(interval, 0.1)
-    interval <- min(interval, 10)
-
-    later::later(function(){
-      # cat("Watching tasks\n")
-      .globals$watchers <- 0
-
-      watch_later()
-
-      tryCatch({
-        watch_tasks()
-      }, error = function(e){
-        print(e)
-        cat(e$message)
-        cat("\n------------- see above error message ------------")
-      })
-
-    }, delay = interval)
-
-    .globals$watchers <- .globals$watchers + 1
-  }
-}
-
-
-#' Generate a sample configuration file
-#' @param file file path or a connection to write the configurations to.
-#' @return None
-#' @export
-conf_sample <- function(file = stdout()){
-  s <- readLines(system.file('default_settings.yaml', package = 'restbatch'))
-  writeLines(s, file)
-  invisible()
-  # yaml::write_yaml(list(
-  #   modules = list(
-  #     task = "{system.file(\"scheduler/task.R\", package = \"restbatch\")}",
-  #     validate = "{system.file(\"scheduler/validate.R\", package = \"restbatch\")}"
-  #   ),
-  #   options = list(
-  #     debug = FALSE,
-  #     require_auth = TRUE,
-  #     modules_require_auth = "task, validate",
-  #     request_timeout = Inf,
-  #     task_root = "{restbatch::restbatch_getopt(\"task_root\")}",
-  #     max_nodetime = 864000L,
-  #     func_newjob = "restbatch:::run_task",
-  #     func_validate_server = "restbatch::handler_validate_server"
-  #   )), file)
-}
-
-# only use it in the server
-module_require_auth <- function(module, settings){
-  module %in% getOption('restbatch.modules_require_auth_list')
-}
-
-
-load_server_settings <- function(settings){
-  if(!is.list(settings)){
-    settings <- yaml::read_yaml(settings)
-  }
-  modules <- settings$modules
-  opts <- settings$options
-  server_scripts <- settings$server_scripts
-
-  for(nm in names(opts)){
-
-    val <- opts[[nm]]
-    if(is.character(val)){
-      val <- glue::glue(val)
-    }
-
-    do.call("options", structure(list(val), names = sprintf('restbatch.%s', nm)))
-  }
-  # Settings to set options on modules need authentication
-  modules_require_auth <- unlist(
-    stringr::str_split(getOption("restbatch.modules_require_auth",
-                                 paste(names(modules), collapse = ',')), "[, ]+"))
-  require_auth <- getOption("restbatch.require_auth", TRUE)
-  if(!require_auth){
-    modules_require_auth <- NULL
-  }
-  options('restbatch.modules_require_auth_list' = modules_require_auth)
-  options("restbatch.settings" = settings)
-
-  # scripts related to server configurations
-  startup_script <- glue::glue(server_scripts$startup_script)
-  options("restbatch.startup_script" = startup_script[file.exists(startup_script)])
-
-  batch_cluster <- glue::glue(server_scripts$batch_cluster)
-  options("restbatch.batch_cluster" = batch_cluster[file.exists(batch_cluster)])
-
-
-}
-
-start_server_internal <- function(
-  host = default_host(),
-  port = default_port(),
-  settings = system.file("debug_settings.yaml", package = 'restbatch')
-){
-
-  default_host(host)
-  default_port(port)
-
-  settings <- normalizePath(settings, mustWork = TRUE)
-  load_server_settings(settings)
-  .globals$paused <- FALSE
-
-  on.exit({
-    .globals$paused <- TRUE
-  }, add = TRUE, after = TRUE)
-
-
-  tryCatch({
-    eval(parse(file = getOption("restbatch.startup_script", NULL)))
-  }, error = function(e){
-    warning("[settings -> startup_script] is invalid script. Use default setup script")
-    future::plan(future::multisession, workers = getOption('restbatch.max_concurrent_tasks', 1L) + 1)
-  })
-
-  on.exit({
-    cat("Cleaning up...\n")
-
-    cat("Shutdown pool\n")
-    future::plan(future::sequential)
-
-    # Update the database
-    cat("De-register unfinished tasks\n")
-
-    ready_tasks <- .subset2(.globals$tasks, 'as_list')()
-    running_tasks <- .subset2(.globals$running, 'as_list')()
-
-    dereg_tasks <- c(ready_tasks, running_tasks)
-
-    if(length(dereg_tasks)){
-      # There are running jobs, stop them (set their status to "canceled")
-      conn <- db_ensure(close = FALSE)
-
-      for(item in dereg_tasks){
-        if(is.list(item) && length(item$userid) ==1 && is.character(item$userid)){
-          # No need to clean as it was cleaned when adding to the list
-          # userid <- clean_db_entry(item$userid)
-
-          tryCatch({
-            DBI::dbExecute(conn, sprintf(
-              'UPDATE restbatchtasksserver SET status="-1" WHERE userid="%s" AND name="%s";',
-              item$userid, item$task$task_name
-            ))
-          }, error = function(e){})
-
-        }
-      }
-
-      DBI::dbDisconnect(conn)
-
-    }
-
-
-
-    cat("Done\n\n\n")
-  })
-
-  plumber::pr_run(local({
-
-    settings <- yaml::read_yaml(settings)
-    modules <- settings$modules
-    modules_require_auth <- getOption('restbatch.modules_require_auth_list')
-
-    # Construct Router
-    root = plumber::pr()
-    current <- root
-
-    # modules require validations
-
-    for(nm in names(modules)){
-      mod <- plumber::pr(glue::glue(modules[[nm]]))
-      if(nm %in% modules_require_auth){
-        mod$filter(name = "validate_auth", expr = handler_validate_auth)
-      }
-      current <- plumber::pr_mount(current, sprintf("/%s", nm), mod)
-    }
-    # current$filter(name = "logger", expr = logger)
-    # validate_auth
-
-    options("restbatch.active_server" = current)
-
-    current$setDebug(debug = getOption("restbatch.debug", TRUE))
-
-    current
-
-  }), host = host, port = port)
-}
-
-portAvailable <- function(port){
-  tryCatch({
-    srv <- httpuv::startServer(
-      host = default_host(allow0 = FALSE),
-      port, list(), quiet = TRUE)
-  }, error = function(e) {
-    port <<- 0
-  }
-  )
-  if (port != 0) {
-    httpuv::stopServer(srv)
-  }
-  port != 0
-}
-
-findPort <- function (port, mustWork = NA) {
-  if (missing(port) || is.null(port)) {
-    port <- as.integer(restbatch_getopt("default_port", default = 7033))
-    if(length(port) != 1 || is.na(port) || !is.integer(port)){
-      port <- httpuv::randomPort()
-    }
-    for (i in 1:11) {
-      if(!portAvailable(port)){
-        port <- httpuv::randomPort()
-      } else {
-        restbatch_setopt('default_port', port, .save = FALSE)
-        break
-      }
-    }
-  }
-  if (port == 0) {
-    msg <- "Unable to start a server. Either the port specified was unavailable or we were unable to find a free port."
-    if(isTRUE(mustWork)){
-      stop(msg)
-    } else if(is.na(mustWork)){
-      warning(msg)
-    }
-  }
-  port
-}
-
-
 #' Server control functions
 #' @description Start, validate, stop a batch server
 #' @param host an 'IPv4' address where to run the server on; default see
@@ -482,11 +72,11 @@ findPort <- function (port, mustWork = NA) {
 #' introduce security issues is deployed on public addresses.}
 #' \item{modules_require_auth}{which modules require default authentications;
 #' use comma to separate.}
-#' \item{request_timeout}{part of authentication system. When default
+#' \item{keep_alive}{part of authentication system. When default
 #' authentications is on, each request header needs to include a timestamp
 #' and an encrypted token of that timestamp. The server will block the requests
 #' that are too old to avoid someone accidentally "steals" your previous tokens.
-#' The \code{request_timeout} defines the maximum time in seconds between
+#' The \code{keep_alive} defines the maximum time in seconds between
 #' the encrypted request time and the actual time when server handles requests}
 #' \item{max_concurrent_tasks}{maximum of running tasks allowed}
 #' \item{max_concurrent_jobs}{maximum of running jobs for each task}
@@ -497,7 +87,8 @@ findPort <- function (port, mustWork = NA) {
 #' the maximum number of tasks to be released each
 #' \code{task_queue_interval} seconds}
 #' \item{task_queue_interval}{intervals in seconds to check and update task
-#' status queued or running on the server}
+#' status queued or running on the server. Recommended to be at least
+#' \code{0.5} to avoid database lock.}
 #' \item{task_root}{where to store the task files}
 #' \item{max_nodetime}{sometimes a task might run forever or get lost. It
 #' will still be in the running status. Set this number to indicate the max
@@ -566,6 +157,116 @@ findPort <- function (port, mustWork = NA) {
 #'
 #' @name restbatch-server
 NULL
+
+# only use it in the server
+module_require_auth <- function(module, settings){
+  module %in% getOption('restbatch.modules_require_auth_list')
+}
+
+
+start_server_internal <- function(
+  host = default_host(),
+  port = default_port(),
+  settings = system.file("debug_settings.yaml", package = 'restbatch')
+){
+
+  default_host(host)
+  default_port(port)
+
+  settings <- normalizePath(settings, mustWork = TRUE)
+  load_server_settings(settings)
+  .globals$paused <- FALSE
+
+  on.exit({
+    .globals$paused <- TRUE
+  }, add = TRUE, after = TRUE)
+
+
+  tryCatch({
+    eval(parse(file = getOption("restbatch.startup_script", NULL)))
+  }, error = function(e){
+    warning("[settings -> startup_script] is invalid script. Use default setup script")
+    future::plan(future::multisession, workers = getOption('restbatch.max_concurrent_tasks', 1L) + 1)
+  })
+
+  on.exit({
+    cat("Cleaning up...\n")
+
+    cat("Shutdown pool\n")
+    future::plan(future::sequential)
+
+    # Update the database
+    cat("De-register unfinished tasks\n")
+
+    ready_tasks <- .subset2(.globals$tasks, 'as_list')()
+    running_tasks <- .subset2(.globals$running, 'as_list')()
+
+    dereg_tasks <- c(ready_tasks, running_tasks)
+
+    if(length(dereg_tasks)){
+      # There are running jobs, stop them (set their status to "canceled")
+      conn <- db_ensure(close = FALSE)
+
+      for(item in dereg_tasks){
+        if(is.list(item) && length(item$userid) ==1 && is.character(item$userid)){
+          # No need to clean as it was cleaned when adding to the list
+          # userid <- clean_db_entry(item$userid)
+
+          tryCatch({
+            DBI::dbExecute(conn, sprintf(
+              'UPDATE restbatchtasksserver SET status="-1" WHERE userid="%s" AND name="%s";',
+              item$userid, item$task$task_name
+            ))
+          }, error = function(e){})
+
+        }
+      }
+
+      DBI::dbDisconnect(conn)
+
+    }
+
+
+
+    cat("Done\n\n\n")
+  })
+
+  # start watcher
+  watch_later()
+
+  plumber::pr_run(local({
+
+    settings <- yaml::read_yaml(settings)
+    modules <- settings$modules
+    modules_require_auth <- getOption('restbatch.modules_require_auth_list')
+
+    # Construct Router
+    root = plumber::pr()
+    current <- root
+
+    # modules require validations
+
+    for(nm in names(modules)){
+      mod <- plumber::pr(glue::glue(modules[[nm]]))
+      if(nm %in% modules_require_auth){
+        mod$filter(name = "validate_auth", expr = handler_validate_auth)
+      }
+      current <- plumber::pr_mount(current, sprintf("/%s", nm), mod)
+    }
+    # current$filter(name = "logger", expr = logger)
+    # validate_auth
+
+    options("restbatch.active_server" = current)
+
+    current$setDebug(debug = getOption("restbatch.debug", TRUE))
+
+    current
+
+  }), host = host, port = port)
+}
+
+
+
 
 #' @rdname restbatch-server
 #' @export
@@ -713,8 +414,10 @@ start_server <- function(
     dir_create2(server_dir)
     # fs <- as.integer(list.dirs(server_root, recursive = FALSE, full.names = FALSE))
 
+    op_sys <- get_os()
+
     # create new server
-    if(get_os() == 'windows'){
+    if(op_sys == 'windows'){
 
       # server_dir <- "C:\\Users\\zheng\\AppData\\Local\\R\\cache\\R\\restbatch\\servers/7033/"
       # host = '127.0.0.1'
@@ -758,21 +461,13 @@ start_server <- function(
       save_yaml(settings_list, file.path(server_dir, "settings.yaml"))
 
       Sys.chmod(start_script, mode = "0777", use_umask = FALSE)
-      system2(start_script , sprintf('"%s"', R.home('bin/R')), stdout = FALSE, stderr = FALSE, wait = FALSE)
-      # writeLines(sprintf('tempdir(check = TRUE)\nrestbatch:::start_server_internal(host=\'%s\',port=%s,settings=\'%s\')',
-      #                    host, port, settings), start_script)
-      #
-      # infile <- file.path(server_dir, "restbatch.start.sh")
-      # writeLines('', infile)
 
-
-      # on.exit({ unlink(f) }, add = TRUE)
-
-      # cmd <- sprintf('nohup "%s" --no-save --no-restore -e "restbatch:::start_server_internal(host=\'%s\',port=%s,settings=\'%s\')" > "%s" 2> "%s" & disown', R.home('Rscript'), host, port, settings,
-      #                normalizePath(file.path(server_dir, 'stdout.log'), mustWork = FALSE),
-      #                normalizePath(file.path(server_dir, 'stderr.log'), mustWork = FALSE))
-      #
-      # writeLines(cmd, f)
+      if(op_sys == 'darwin'){
+        # Not sure why osx does not disown the process (hardened?)
+        system2("bash", c(start_script, sprintf('"%s"', R.home('bin/R'))), stdout = FALSE, stderr = FALSE, wait = FALSE)
+      } else {
+        system2(start_script , sprintf('"%s"', R.home('bin/R')), stdout = FALSE, stderr = FALSE, wait = FALSE)
+      }
 
     }
 

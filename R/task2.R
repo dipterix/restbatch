@@ -70,9 +70,7 @@ task__submit <- function(task, pack = NA, force = FALSE){
 
   try({
     if(scode == 200){
-      # TODO: check whether the server returned expected messages (rev auth)
 
-      content <- httr::content(res)
       # Submitted!
       task$submitted <- TRUE
 
@@ -81,8 +79,18 @@ task__submit <- function(task, pack = NA, force = FALSE){
       task$submitted_to$path <- task$path_submit
       task$submitted_to$protocol <- task$protocol
       task$submitted_to$packed <- pack
+      content <- httr::content(res)
+
       if(!(is.list(content) && isTRUE(unlist(content$message) == "Job submitted."))){
         warning("Job submitted, but got incorrect response from the server. Please check your server configurations and make sure you trust the the host.")
+      }
+
+      # check with server to make sure the task has been submitted (sometimes the server could get errors)
+      server_status <- task$server_status()
+      if(server_status$status == 'unknown' && is.na(server_status$n_total)){
+        # server did not receive the task correctly, raise error
+        task$submitted <- FALSE
+        stop("Task submitted, but the server is too busy. Please submit again.")
       }
 
       # update
@@ -235,7 +243,7 @@ task__collect <- function(task){
   await <- 0.5
   while(!task$resolved()){
     Sys.sleep(await)
-    await <- await * 1.01
+    await <- await * 1.15
     if(await > 10){ await <- 10 }
   }
   # get job IDs
@@ -294,6 +302,7 @@ task__clear_registry <- function(task){
   batchtools::clearRegistry(task$reg)
 }
 task__remove <- function(task, wait = 0.01){
+
   if(dir.exists(task$task_dir)){
     task$reload_registry(writeable = TRUE)
     suppressMessages({
@@ -309,8 +318,11 @@ task__remove <- function(task, wait = 0.01){
 
   try({
     request_server(path = 'task/remove', host = task$submitted_to$host,
-                   port = task$submitted_to$port, protocol = task$protocol)
+                   port = task$submitted_to$port, protocol = task$protocol,
+                   body = list(task_name = task$task_name))
+    return(TRUE)
   }, silent = TRUE)
+  return(FALSE)
 }
 task__zip <- function(task, target = tempfile(fileext = '.zip')){
   # zip the directory
@@ -572,6 +584,7 @@ task__monitor <- function(task, mode = c("rstudiojob", "progress", "callback"), 
 
 }
 
+
 new_task_internal <- function(task_root, task_dir, task_name, reg){
   if(missing(reg)){
     suppressMessages({
@@ -785,7 +798,8 @@ make_client_task_proxy <- function(task){
 #' @param fun,... function to apply and additional parameters to be
 #' passed to \code{\link[batchtools]{batchMap}} function
 #' @param task_name a readable name for the task; default is \code{'Noname'}.
-#' @return A locked proxy (environment) that wraps batch task with the following
+#' @return If the task does not exist, the returns \code{NULL}, otherwise
+#' returns a locked environment proxy that wraps batch task with the following
 #' fields and methods.
 #'
 #' @section Fields:
@@ -889,7 +903,9 @@ new_task2 <- function(fun, ..., task_name = "Noname") {
 #' @export
 restore_task2 <- function(task_name){
   task <- restore_task(task_name = task_name, userid = get_user(), .client = TRUE, .update_db = TRUE)
-  make_client_task_proxy(task)
+  if(!is.null(task)){
+    task <- make_client_task_proxy(task)
+  }
 }
 
 #' @export

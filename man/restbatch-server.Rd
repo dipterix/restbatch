@@ -146,11 +146,11 @@ set up scenarios like debugging, running on local machines, but will
 introduce security issues is deployed on public addresses.}
 \item{modules_require_auth}{which modules require default authentications;
 use comma to separate.}
-\item{request_timeout}{part of authentication system. When default
+\item{keep_alive}{part of authentication system. When default
 authentications is on, each request header needs to include a timestamp
 and an encrypted token of that timestamp. The server will block the requests
 that are too old to avoid someone accidentally "steals" your previous tokens.
-The \code{request_timeout} defines the maximum time in seconds between
+The \code{keep_alive} defines the maximum time in seconds between
 the encrypted request time and the actual time when server handles requests}
 \item{max_concurrent_tasks}{maximum of running tasks allowed}
 \item{max_concurrent_jobs}{maximum of running jobs for each task}
@@ -161,7 +161,8 @@ all might be time consuming, \code{max_release_tasks_per_second} controls
 the maximum number of tasks to be released each
 \code{task_queue_interval} seconds}
 \item{task_queue_interval}{intervals in seconds to check and update task
-status queued or running on the server}
+status queued or running on the server. Recommended to be at least
+\code{0.5} to avoid database lock.}
 \item{task_root}{where to store the task files}
 \item{max_nodetime}{sometimes a task might run forever or get lost. It
 will still be in the running status. Set this number to indicate the max

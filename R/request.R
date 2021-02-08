@@ -145,7 +145,7 @@ request_server <- function(
     }
   }, error = function(e){
     e$message <- sprintf("%s\n\n  Please make sure you have the access to the server.\n", e$message)
-    warning(e)
+    stop(e)
   })
   res
 
