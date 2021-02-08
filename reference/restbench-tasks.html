@@ -132,7 +132,8 @@ passed to <code><a href='https://rdrr.io/pkg/batchtools/man/batchMap.html'>batch
 
     <h2 class="hasAnchor" id="value"><a class="anchor" href="#value"></a>Value</h2>
 
-    <p>A locked proxy (environment) that wraps batch task with the following
+    <p>If the task does not exist, the returns <code>NULL</code>, otherwise
+returns a locked environment proxy that wraps batch task with the following
 fields and methods.</p>
     <h2 class="hasAnchor" id="fields"><a class="anchor" href="#fields"></a>Fields</h2>
 
@@ -200,7 +201,7 @@ read-only mode to avoid file corrects</p></dd>
 <span class='co'># Not submitted</span>
 <span class='va'>task</span>
 </div><div class='output co'>#&gt; Task (client proxy from the `restbatch` package)
-#&gt; Task name : [2ae9ecbf40044da1a67f8ad57383ed7a__Noname]
+#&gt; Task name : [a2cc200587e58eb14753e57f6d5d0acc__Noname]
 #&gt; Total jobs: 6
 #&gt; Submitted to: [NA]
 #&gt; 
@@ -234,7 +235,7 @@ read-only mode to avoid file corrects</p></dd>
 
 <span class='co'># clean up, remove all task files</span>
 <span class='va'>task_restored</span><span class='op'>$</span><span class='fu'>remove</span><span class='op'>(</span><span class='op'>)</span>
-
+</div><div class='output co'>#&gt; [1] FALSE</div><div class='input'>
 </div></pre>
   </div>
   <div class="col-md-3 hidden-xs hidden-sm" id="pkgdown-sidebar">

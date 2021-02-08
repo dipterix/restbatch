@@ -275,11 +275,11 @@ set up scenarios like debugging, running on local machines, but will
 introduce security issues is deployed on public addresses.</p></dd>
 <dt>modules_require_auth</dt><dd><p>which modules require default authentications;
 use comma to separate.</p></dd>
-<dt>request_timeout</dt><dd><p>part of authentication system. When default
+<dt>keep_alive</dt><dd><p>part of authentication system. When default
 authentications is on, each request header needs to include a timestamp
 and an encrypted token of that timestamp. The server will block the requests
 that are too old to avoid someone accidentally "steals" your previous tokens.
-The <code>request_timeout</code> defines the maximum time in seconds between
+The <code>keep_alive</code> defines the maximum time in seconds between
 the encrypted request time and the actual time when server handles requests</p></dd>
 <dt>max_concurrent_tasks</dt><dd><p>maximum of running tasks allowed</p></dd>
 <dt>max_concurrent_jobs</dt><dd><p>maximum of running jobs for each task</p></dd>
@@ -290,7 +290,8 @@ all might be time consuming, <code>max_release_tasks_per_second</code> controls
 the maximum number of tasks to be released each
 <code>task_queue_interval</code> seconds</p></dd>
 <dt>task_queue_interval</dt><dd><p>intervals in seconds to check and update task
-status queued or running on the server</p></dd>
+status queued or running on the server. Recommended to be at least
+<code>0.5</code> to avoid database lock.</p></dd>
 <dt>task_root</dt><dd><p>where to store the task files</p></dd>
 <dt>max_nodetime</dt><dd><p>sometimes a task might run forever or get lost. It
 will still be in the running status. Set this number to indicate the max
