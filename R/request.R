@@ -129,13 +129,18 @@ request_server <- function(
       }
 
       # use any key
-      key <- my_keys[[sample(which(is_key), 1)]]
+      key_idx <- which(is_key)
+      if(length(key_idx) == 1){
+        key <- my_keys[[key_idx]]
+      } else {
+        key <- my_keys[[sample(key_idx, 1)]]
+      }
 
-      answer <- encrypt_string(question, key)
+      key_md5 <- as.character(key$pubkey$fingerprint)
 
       # my key, server key MD5, key used to answer, question itself, and my answer
-      answer <- paste(server_time, server_keymd5, as.character(key$pubkey$fingerprint),
-                      question, answer)
+      answer <- paste(server_time, server_keymd5, key_md5,
+                      question, encrypt_string(question, key))
 
       # file request again. If still fails, then let handlers deal with it
       res <- f(
