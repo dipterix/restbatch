@@ -61,47 +61,72 @@ function(req, res){
     userid <- ns$clean_db_entry(req$HEADERS[["restbatch.userid"]], msg = '[1] Invalid user ID')
     task_name <- ns$clean_db_entry(req$body$task_name, disallow = '[^a-zA-Z0-9-_]', msg = '[5] Invalid task name')
 
-    # get database connection and ensure proper disconnection
-    conn <- ns$db_ensure(close = FALSE)
-    ns$db_lock(conn)
-    on.exit({
-      ns$db_unlock(conn)
-      DBI::dbDisconnect(conn)
-    })
-
-    # query the task status
-    # userid and task_name only contain letters, digits and -_, so quote them and it's safe against SQL injection
-    tbl <- DBI::dbGetQuery(conn, sprintf(
-      'SELECT * FROM restbatchtasksserver WHERE userid="%s" AND name="%s"',
-      userid, task_name
-    ))
-
-    # Close now as restoring task may need connection to DB
-    ns$db_unlock(conn)
-    DBI::dbDisconnect(conn)
-    on.exit({})
-
-    # just hide some information
-    tbl$path <- NULL
-    tbl$clientip <- NULL
-    tbl$ncpu <- NULL
-    tbl$userid <- NULL
-    if(nrow(tbl)){
-      tbl <- as.list(tbl[1,])
-    } else {
-      tbl <- as.list(tbl)
-    }
+    # # get database connection and ensure proper disconnection
+    # conn <- ns$db_ensure(close = FALSE)
+    # ns$db_lock(conn)
+    # on.exit({
+    #   ns$db_unlock(conn)
+    #   DBI::dbDisconnect(conn)
+    # })
+    #
+    # # query the task status
+    # # userid and task_name only contain letters, digits and -_, so quote them and it's safe against SQL injection
+    # tbl <- DBI::dbGetQuery(conn, sprintf(
+    #   'SELECT * FROM restbatchtasksserver WHERE userid="%s" AND name="%s"',
+    #   userid, task_name
+    # ))
+    #
+    # # Close now as restoring task may need connection to DB
+    # ns$db_unlock(conn)
+    # DBI::dbDisconnect(conn)
+    # on.exit({})
+    #
+    # # just hide some information
+    # tbl$path <- NULL
+    # tbl$clientip <- NULL
+    # tbl$ncpu <- NULL
+    # tbl$userid <- NULL
+    # if(nrow(tbl)){
+    #   tbl <- as.list(tbl[1,])
+    # } else {
+    #   tbl <- as.list(tbl)
+    # }
 
 
     # add local information
-    task <- ns$restore_task(task_name = task_name)
-    s <- task$local_status()
-    tbl$n_total <- task$njobs
-    tbl$n_started <- s$started
-    tbl$n_done <- s$done
-    tbl$n_error <- s$error
+    task <- ns$restore_task(task_name = task_name, userid = userid,
+                            .client = FALSE, .update_db = TRUE)
 
-    tbl
+    if(is.null(task)){
+      ret <- list(
+        name = task_name,
+        status = "unknown",
+        error = NA,
+        removed = 1L,
+        packed = 0L,
+        time_added = NA,
+        n_total = NA,
+        n_started = NA,
+        n_done = NA,
+        n_error = NA
+      )
+    } else {
+      s <- task$local_status()
+      ret <- list(
+        name = task$task_name,
+        status = task$..server_status,
+        error = as.integer(s$error > 0),
+        removed = 0L,
+        packed = as.integer(task$..server_packed),
+        time_added = as.numeric(task$..server_time_added),
+        n_total = task$njobs,
+        n_started = s$started,
+        n_done = s$done,
+        n_error = s$error
+      )
+    }
+
+    ret
   }, res = res, debug = debug)
 }
 

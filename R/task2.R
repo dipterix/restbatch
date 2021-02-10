@@ -676,6 +676,7 @@ new_task_internal <- function(task_root, task_dir, task_name, reg){
     # used by server only (no use for clients)
     ..server_status = 0L,  # STATUS_CODE
     ..server_packed = FALSE,
+    ..server_time_added = as.numeric(Sys.time()),
 
     # methods
     local_status = function(){ task__local_status(task) },
@@ -827,6 +828,7 @@ restore_task <- function(task_name, userid, .client = TRUE, .update_db = TRUE){
         # load from server
         task$..server_status <- entry$status
         task$..server_packed <- (entry$packed > 0)
+        task$..server_time_added <- as.numeric(entry$time_added)
       }
     }
     task
