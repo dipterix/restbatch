@@ -28,10 +28,15 @@ default_host('10.0.0.217')
 
 
 task <- restbatch:::new_task2(function(x){
-  x + Sys.getpid()
-}, x = 1:10, task_name = "Test"); task
+  if(!exists('ee', envir = globalenv())){
+    assign('ee', new.env(), envir = globalenv())
+    ee$a <- x
+  }
 
+  list(ee, ee$a)
+}, x = 1:3, task_name = "Test"); task
 
+res <- task$submit(); task$collect()
 # task$reload_registry(TRUE)
 # task$reg$cluster.functions <- batchtools::makeClusterFunctionsSocket(1)
 # batchtools::submitJobs(reg = task$reg)

@@ -37,8 +37,8 @@
 #' would take to fail the test. If the server fails to respond before the limit,
 #' the test will also fail.
 #'
-#' \code{kill_server} stops the server as soon as possible. It sends signals to
-#' the server to cancel the unfinished tasks and shutdown.
+#' \code{kill_server,stop_server} stop the server as soon as possible. They
+#' send signals to the server to cancel the unfinished tasks and shutdown.
 #' \code{autoclose_server} stops the server when the current R session exits.
 #'
 #' @section Server Configuration:
@@ -163,6 +163,15 @@ module_require_auth <- function(module, settings){
   module %in% getOption('restbatch.modules_require_auth_list')
 }
 
+isin_server <- function(){
+  if(interactive()){
+    return(FALSE)
+  }
+  if(is.null(getOption("restbatch_server_addr", NULL))){
+    return(FALSE)
+  }
+  return(TRUE)
+}
 
 start_server_internal <- function(
   host = default_host(),
@@ -175,12 +184,8 @@ start_server_internal <- function(
 
   settings <- normalizePath(settings, mustWork = TRUE)
   load_server_settings(settings)
+  options("restbatch_server_addr" = list(host = host, port = port))
   .globals$paused <- FALSE
-
-  on.exit({
-    .globals$paused <- TRUE
-  }, add = TRUE, after = TRUE)
-
 
   tryCatch({
     eval(parse(file = getOption("restbatch.startup_script", NULL)))
@@ -190,6 +195,8 @@ start_server_internal <- function(
   })
 
   on.exit({
+    .globals$paused <- TRUE
+
     cat("Cleaning up...\n")
 
     cat("Shutdown pool\n")
@@ -271,7 +278,8 @@ start_server_internal <- function(
 #' @rdname restbatch-server
 #' @export
 server_alive <- function(port = default_port(), host = default_host(allow0 = FALSE),
-                         protocol = default_protocol(), path = "validate/ping", ...){
+                         protocol = default_protocol(), path = "validate/ping",
+                         ...){
 
   if(host == '0.0.0.0'){
     host <- '127.0.0.1'
@@ -362,6 +370,9 @@ kill_server <- function(wait = TRUE, host = default_host(allow0 = FALSE), port =
 
 }
 
+#' @rdname restbatch-server
+#' @export
+stop_server <- kill_server
 
 #' @rdname restbatch-server
 #' @export
@@ -532,12 +543,12 @@ autoclose_server <- function(host = default_host(), port = default_port(), auto_
 #' @rdname restbatch-server
 #' @export
 ensure_server <- function(host = default_host(), port = default_port(),
-                          protocol = default_protocol(), make_default = TRUE,
+                          protocol = default_protocol(), make_default = TRUE, supervise = FALSE,
                           validate = TRUE, validate_sleep = 0.1, validate_maxwait = 30, timeout = 3, ...){
   newly_started <- FALSE
   if(!server_alive(port = port, host = host, protocol = protocol, timeout = timeout, ...)){
     newly_started <- TRUE
-    start_server(host, port, protocol = protocol, make_default = FALSE, ...)
+    start_server(host, port, protocol = protocol, make_default = FALSE, supervise = supervise, ...)
 
     # wait for the server to get ready
     Sys.sleep(1)

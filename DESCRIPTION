@@ -5,8 +5,10 @@ Version: 0.1.0
 Authors@R: c(
     person("Zhengjia", "Wang", email = "dipterix.wang@gmail.com", role = c("aut", "cre"))
     )
-Description: More about what it does (maybe more than one line)
-    Use four spaces when indenting paragraphs within the Description.
+Description: Starts a web service accepting 'http' requests, automatically
+    create, schedule and scale the tasks via the package 'batchtools' as
+    the backend. Provides integrations to monitor the submitted tasks in 
+    'RStudio' or 'Shiny' apps.
 License: GPL-3
 Encoding: UTF-8
 Language: en-US

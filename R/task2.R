@@ -236,6 +236,7 @@ task__resolved <- function(task){
 }
 
 task__collect <- function(task){
+
   if(task$collected){
     return(task$results)
   }
@@ -317,14 +318,21 @@ task__remove <- function(task, wait = 0.01){
   }, silent = TRUE)
 
   try({
-    request_server(path = 'task/remove', host = task$submitted_to$host,
-                   port = task$submitted_to$port, protocol = task$protocol,
-                   body = list(task_name = task$task_name))
+    if(isin_server()){
+      request_server(path = 'task/remove', host = task$submitted_to$host,
+                     port = task$submitted_to$port, protocol = task$protocol,
+                     body = list(task_name = task$task_name))
+    }
     return(TRUE)
   }, silent = TRUE)
   return(FALSE)
 }
 task__zip <- function(task, target = tempfile(fileext = '.zip')){
+
+  if(isin_server()){
+    target <- paste0(task$task_dir, '.zip')
+  }
+
   # zip the directory
   f <- target
   if(file.exists(f)){ unlink(f) }
@@ -382,6 +390,7 @@ task__locally_resolved <- function(task){
 
 
 task__monitor_rstudio <- function(task, update_freq = 1, ...){
+
   n_finished <- 0
   submitted <- task$submitted
   readable_name <- stringr::str_remove_all(task$task_name, "(^[a-zA-Z0-9]{32}__)|(__[a-zA-Z0-9]{16})")
@@ -584,6 +593,56 @@ task__monitor <- function(task, mode = c("rstudiojob", "progress", "callback"), 
 
 }
 
+task__set_globals <- function(task, .env = parent.frame(), ..., .list = list(),
+                         .auto_vars = FALSE, .packages = character(0), .dry_run = FALSE){
+
+  if(task$submitted){
+    stop("The task has been submitted. Cannot change exported variables.")
+  }
+
+  func <- readRDS(file.path(task$exports_dir, "func.rds"))
+
+  globals <- future::getGlobalsAndPackages(dipsaus::new_function2(
+    func$fun_args, func$fun_body, env = .env, quote_type = "quote"
+  ), envir = .env, maxSize = Inf, globals = .auto_vars)
+
+  packages <- unique(c(.packages, globals$packages))
+  globals <- globals$globals
+  where <- attr(globals, "where")
+
+  more_globals <- c(list(...), .list)
+
+  for(nm in names(more_globals)){
+    globals[[nm]] <- more_globals[[nm]]
+    where[[nm]] <- NULL
+  }
+  attr(globals, "where") <- where
+  attr(globals, "packages") <- packages
+
+  attr(globals, "total_size") <- NULL
+
+  nms <- names(globals)
+  stopifnot2(!('' %in% nms),
+             msg = "Invalid global variable name detected. All variables should be named.")
+
+  if(!.dry_run){
+    saveRDS(globals, file.path(task$exports_dir, "globals.rds"))
+    saveRDS(nms, file.path(task$exports_dir, "globals.names.rds"))
+    return(invisible(globals))
+  } else {
+    message(".dry_run=TRUE will not save the variables to task. It's designed to debug tasks.")
+    return(globals)
+  }
+}
+
+task__get_globals <- function(task){
+  f <- file.path(task$exports_dir, "globals.rds")
+  if(file.exists(f)){
+    return(readRDS(f))
+  } else {
+    NULL
+  }
+}
 
 new_task_internal <- function(task_root, task_dir, task_name, reg){
   if(missing(reg)){
@@ -607,6 +666,7 @@ new_task_internal <- function(task_root, task_dir, task_name, reg){
     task_name = task_name,
     task_dir = task_dir,
     task_root = task_root,
+    exports_dir = file.path(task_dir, "restbatch"),
     njobs = nrow(reg$status),
     results = NULL,
     collected = FALSE,
@@ -620,6 +680,18 @@ new_task_internal <- function(task_root, task_dir, task_name, reg){
     # methods
     local_status = function(){ task__local_status(task) },
     server_status = function(){ task__server_status(task) },
+    set_globals = function(.env = parent.frame(), ..., .list = list(),
+                      .auto_vars = FALSE, .packages = character(0), .dry_run = FALSE){
+
+      if(isin_server()){
+        stop("Cannot set task globals within a task function.")
+      }
+
+      task__set_globals(task, ..., .env = parent.frame(), .list = .list,
+                        .auto_vars = .auto_vars, .dry_run = .dry_run,
+                        .packages = .packages)
+    },
+    get_globals = function(){ task__get_globals(task) },
     submit = function(pack = NA, force = FALSE){ task__submit(task, pack = pack, force = force) },
     resolved = function(){ task__resolved(task) },
     clear_registry = function(){ task__clear_registry(task) },
@@ -630,6 +702,9 @@ new_task_internal <- function(task_root, task_dir, task_name, reg){
     zip = function(target = tempfile(fileext = '.zip')){ task__zip(task, target) },
     download = function(target, force = FALSE){ task__download(task, target, force = FALSE) },
     monitor = function(mode = c("rstudiojob", "progress", "callback"), callback = NULL, update_freq = 1, ...){
+      if(isin_server()){
+        stop("Cannot monitor a task within a task function.")
+      }
       task__monitor(task, mode = mode, callback = callback, update_freq = update_freq, ...)
     },
 
@@ -657,11 +732,48 @@ new_task <- function(fun, ..., task_name, .temporary = FALSE){
   task_dir <- get_task_path(task_name)
   task_name <- attr(task_dir, 'task_name')
   task_root <- attr(task_dir, 'task_root')
+  exports_dir <- file.path(task_dir, "restbatch")
   suppressMessages({
 
     reg <- batchtools::makeRegistry(file.dir = task_dir, work.dir = task_root,
                                     namespaces = attached_packages(), make.default = FALSE)
+
+    # mod the function body to load global variables
+    fun_body <- body(fun)
+    body(fun) <- bquote({
+      # Obtain the globals
+      local({
+        # will run in another process
+        f <- file.path(.(task_name), "restbatch", "globals.rds")
+        last_loaded <- isTRUE(getOption("restbatch_globals_loaded", "") == f)
+        if(file.exists(f) && !last_loaded){
+          globals <- readRDS(file.path(.(task_name), "restbatch", "globals.rds"))
+          for(pkg in attr(globals, "packages")){
+            # load & attach namespace
+            # Have to do this as this is running in another process.
+            # The user's code might not in ns::func format
+            # in this case, the namespace must be loaded, otherwise the function
+            # cannot be found
+            do.call("require", list(package = pkg, quietly = TRUE, character.only = TRUE))
+          }
+          list2env( globals, envir = .GlobalEnv )
+          options("restbatch_globals_loaded" = f)
+        }
+      })
+      .(fun_body)
+    })
+
     batchtools::batchMap(fun, ..., reg = reg)
+
+    # exports
+    dir_create2(exports_dir)
+    saveRDS(list(
+      fun_args = formals(fun),
+      fun_body = fun_body
+    ), file = file.path(exports_dir, "func.rds"))
+    # suppressMessages({
+    #   batchtools::batchExport(, reg = reg)
+    # })
 
   })
   task <- new_task_internal(task_root, task_dir, task_name, reg)
@@ -763,7 +875,7 @@ make_client_task_proxy <- function(task){
   members <- names(task)
   members <- members[!(startsWith(members, '..') | members %in% names(ret))]
 
-  read_onlys <- c('njobs', 'task_dir', 'results', 'task_root', 'reg', 'task_name')
+  read_onlys <- c('njobs', 'task_dir', 'results', 'task_root', 'reg', 'task_name', 'exports_dir')
 
   lapply(members, function(nm){
     if(is.function(task[[nm]])){
@@ -798,9 +910,30 @@ make_client_task_proxy <- function(task){
 #' @param fun,... function to apply and additional parameters to be
 #' passed to \code{\link[batchtools]{batchMap}} function
 #' @param task_name a readable name for the task; default is \code{'Noname'}.
+#' @param globals variables to export to the computing processes; see details.
+#' @param env environment where the \code{'globals'} are defined
 #' @return If the task does not exist, the returns \code{NULL}, otherwise
 #' returns a locked environment proxy that wraps batch task with the following
 #' fields and methods.
+#'
+#' @details A task proxy manages a folder at \code{task_dir} containing all
+#' the information necessary to perform the task. A task is a collection
+#' of "jobs" (see its definition in \code{\link[batchtools]{batchMap}}).
+#' The evaluation of the jobs is always in different processes with the current
+#' R session, sometimes even different computers.
+#'
+#' Sometimes the function \code{fun} may contains external objects that need
+#' to be exported. For example, \code{function(x){ a+x }} has a variable
+#' \code{a} that might be defined in somewhere else. It will raise errors
+#' if we simply execute the function. Therefore, the task requires exporting
+#' the variable \code{a} before executing jobs. This task could be done
+#' automatically or manually.
+#' If \code{globals} is \code{TRUE}, then all the external variables including
+#' the packages needed will be automatically detected and exported.
+#' If \code{globals} is a character vector, then only the variables indicated
+#' will be correctly exported
+#' If \code{globals} is \code{FALSE}, then you need to manually specify them
+#' in \code{task$set_globals} method
 #'
 #' @section Fields:
 #' \describe{
@@ -893,15 +1026,34 @@ NULL
 
 #' @rdname restbench-tasks
 #' @export
-new_task2 <- function(fun, ..., task_name = "Noname") {
+new_task2 <- function(fun, ..., task_name = "Noname", globals = TRUE, env = parent.frame()) {
+
+  if(isin_server()){
+    stop("Cannot call `new_task2` within a task function.")
+  }
+
   stopifnot(is.function(fun))
   task <- new_task(fun = fun, ..., task_name = task_name, .temporary = FALSE)
-  make_client_task_proxy(task)
+  task <- make_client_task_proxy(task)
+  if(!isFALSE(globals)){
+    # if logical or characters
+    if(is.logical(globals) || is.character(globals)){
+      task$set_globals(.env = env, .auto_vars = globals)
+    } else if(is.list(globals)) {
+      task$set_globals(.env = env, .auto_vars = FALSE, .list = globals)
+    }
+  }
+  task
 }
 
 #' @rdname restbench-tasks
 #' @export
 restore_task2 <- function(task_name){
+
+  if(isin_server()){
+    stop("Cannot call `restore_task2` within a task function.")
+  }
+
   task <- restore_task(task_name = task_name, userid = get_user(), .client = TRUE, .update_db = TRUE)
   if(!is.null(task)){
     task <- make_client_task_proxy(task)

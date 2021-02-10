@@ -6,7 +6,7 @@
 \alias{restore_task2}
 \title{Create/Restore a client-side task proxy}
 \usage{
-new_task2(fun, ..., task_name = "Noname")
+new_task2(fun, ..., task_name = "Noname", globals = TRUE, env = parent.frame())
 
 restore_task2(task_name)
 }
@@ -15,6 +15,10 @@ restore_task2(task_name)
 passed to \code{\link[batchtools]{batchMap}} function}
 
 \item{task_name}{a readable name for the task; default is \code{'Noname'}.}
+
+\item{globals}{variables to export to the computing processes; see details.}
+
+\item{env}{environment where the \code{'globals'} are defined}
 }
 \value{
 If the task does not exist, the returns \code{NULL}, otherwise
@@ -23,6 +27,26 @@ fields and methods.
 }
 \description{
 Create/Restore a client-side task proxy
+}
+\details{
+A task proxy manages a folder at \code{task_dir} containing all
+the information necessary to perform the task. A task is a collection
+of "jobs" (see its definition in \code{\link[batchtools]{batchMap}}).
+The evaluation of the jobs is always in different processes with the current
+R session, sometimes even different computers.
+
+Sometimes the function \code{fun} may contains external objects that need
+to be exported. For example, \code{function(x){ a+x }} has a variable
+\code{a} that might be defined in somewhere else. It will raise errors
+if we simply execute the function. Therefore, the task requires exporting
+the variable \code{a} before executing jobs. This task could be done
+automatically or manually.
+If \code{globals} is \code{TRUE}, then all the external variables including
+the packages needed will be automatically detected and exported.
+If \code{globals} is a character vector, then only the variables indicated
+will be correctly exported
+If \code{globals} is \code{FALSE}, then you need to manually specify them
+in \code{task$set_globals} method
 }
 \section{Fields}{
 

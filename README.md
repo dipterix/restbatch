@@ -45,7 +45,7 @@ start_server()
 server_alive()
 ```
 
-A local server will run locally at port `7033`. By default the server does not accept requests from the outside. 
+A local server will run locally at port `7033`. 
 
 ### 2.2 Schedule a task
 

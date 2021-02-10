@@ -4,6 +4,7 @@
 \alias{restbatch-server}
 \alias{server_alive}
 \alias{kill_server}
+\alias{stop_server}
 \alias{start_server}
 \alias{autoclose_server}
 \alias{ensure_server}
@@ -18,6 +19,14 @@ server_alive(
 )
 
 kill_server(
+  wait = TRUE,
+  host = default_host(allow0 = FALSE),
+  port = default_port(),
+  protocol = default_protocol(),
+  path = "validate/shutdown"
+)
+
+stop_server(
   wait = TRUE,
   host = default_host(allow0 = FALSE),
   port = default_port(),
@@ -47,6 +56,7 @@ ensure_server(
   port = default_port(),
   protocol = default_protocol(),
   make_default = TRUE,
+  supervise = FALSE,
   validate = TRUE,
   validate_sleep = 0.1,
   validate_maxwait = 30,
@@ -110,8 +120,8 @@ if the server is unavailable. \code{timeout} is the upper time limit that
 would take to fail the test. If the server fails to respond before the limit,
 the test will also fail.
 
-\code{kill_server} stops the server as soon as possible. It sends signals to
-the server to cancel the unfinished tasks and shutdown.
+\code{kill_server,stop_server} stop the server as soon as possible. They
+send signals to the server to cancel the unfinished tasks and shutdown.
 \code{autoclose_server} stops the server when the current R session exits.
 }
 \section{Server Configuration}{

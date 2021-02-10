@@ -61,6 +61,11 @@ authtoken <- function(host, port, token){
 request_server <- function(
   path, host = default_host(), port = default_port(), protocol = default_protocol(),
   body = list(), header = list(), method = c('POST', 'GET'), encode = 'json', timeout = 15){
+
+  if(isin_server()){
+    stop("Cannot request server within a task function. Are you trying to submit, get server status, collect, within the task function?")
+  }
+
   method <- match.arg(method)
   conf <- prepare_request()
   dipsaus::list_to_fastmap2(header, conf)
