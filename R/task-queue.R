@@ -32,7 +32,8 @@ watch_tasks <- function(release_speed){
             cat("Task ", item$task$task_name, " finished, packing the result folder.\n")
             item$packing <- TRUE
             item$future <- future::future({
-              item$task$zip(target = paste0(item$task$task_dir, '.zip'))
+              # this is server so it's fine to use result_only = TRUE to remove globals file (large) to speed up
+              item$task$zip(target = paste0(item$task$task_dir, '.zip'), result_only = TRUE)
             }, seed = TRUE)
             remove_task <- FALSE
           }

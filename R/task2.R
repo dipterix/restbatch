@@ -327,7 +327,7 @@ task__remove <- function(task, wait = 0.01){
   }, silent = TRUE)
   return(FALSE)
 }
-task__zip <- function(task, target = tempfile(fileext = '.zip')){
+task__zip <- function(task, target = tempfile(fileext = '.zip'), result_only = FALSE){
 
   if(isin_server()){
     target <- paste0(task$task_dir, '.zip')
@@ -341,7 +341,21 @@ task__zip <- function(task, target = tempfile(fileext = '.zip')){
     setwd(wd)
   }, add = TRUE, after = TRUE)
   setwd(task$task_root)
-  utils::zip(f, task$task_name)
+
+  if(result_only){
+    # Usually this means the task has been resolved, and globals are not needed anymore
+
+    if(!isin_server() && interactive()){
+      warning("Trying to zip a task without globals. This will almost surely result in error. Should only be used on the server implementation.")
+    }
+
+    sub_dir <- list.files(task$task_name)
+    sub_dir <- sub_dir[sub_dir != "restbatch"]
+    utils::zip(f, file.path(task$task_name, sub_dir))
+  } else {
+    utils::zip(f, task$task_name)
+  }
+
   normalizePath(f)
 }
 task__download <- function(task, target, force = FALSE){
@@ -700,7 +714,7 @@ new_task_internal <- function(task_root, task_dir, task_name, reg){
     reload_registry = function(writeable = FALSE){ task__reload_registry(task, writeable = writeable) },
     collect = function(){ task__collect(task) },
     locally_resolved = function(){ task__locally_resolved(task) },
-    zip = function(target = tempfile(fileext = '.zip')){ task__zip(task, target) },
+    zip = function(target = tempfile(fileext = '.zip'), result_only = FALSE){ task__zip(task, target, result_only) },
     download = function(target, force = FALSE){ task__download(task, target, force = FALSE) },
     monitor = function(mode = c("rstudiojob", "progress", "callback"), callback = NULL, update_freq = 1, ...){
       if(isin_server()){
