@@ -128,6 +128,14 @@
   path <span class='op'>=</span> <span class='st'>"validate/shutdown"</span>
 <span class='op'>)</span>
 
+<span class='fu'>stop_server</span><span class='op'>(</span>
+  wait <span class='op'>=</span> <span class='cn'>TRUE</span>,
+  host <span class='op'>=</span> <span class='fu'><a href='default_url.html'>default_host</a></span><span class='op'>(</span>allow0 <span class='op'>=</span> <span class='cn'>FALSE</span><span class='op'>)</span>,
+  port <span class='op'>=</span> <span class='fu'><a href='default_url.html'>default_port</a></span><span class='op'>(</span><span class='op'>)</span>,
+  protocol <span class='op'>=</span> <span class='fu'><a href='default_url.html'>default_protocol</a></span><span class='op'>(</span><span class='op'>)</span>,
+  path <span class='op'>=</span> <span class='st'>"validate/shutdown"</span>
+<span class='op'>)</span>
+
 <span class='fu'>start_server</span><span class='op'>(</span>
   host <span class='op'>=</span> <span class='fu'><a href='default_url.html'>default_host</a></span><span class='op'>(</span><span class='op'>)</span>,
   port <span class='op'>=</span> <span class='fu'><a href='default_url.html'>default_port</a></span><span class='op'>(</span><span class='op'>)</span>,
@@ -150,6 +158,7 @@
   port <span class='op'>=</span> <span class='fu'><a href='default_url.html'>default_port</a></span><span class='op'>(</span><span class='op'>)</span>,
   protocol <span class='op'>=</span> <span class='fu'><a href='default_url.html'>default_protocol</a></span><span class='op'>(</span><span class='op'>)</span>,
   make_default <span class='op'>=</span> <span class='cn'>TRUE</span>,
+  supervise <span class='op'>=</span> <span class='cn'>FALSE</span>,
   validate <span class='op'>=</span> <span class='cn'>TRUE</span>,
   validate_sleep <span class='op'>=</span> <span class='fl'>0.1</span>,
   validate_maxwait <span class='op'>=</span> <span class='fl'>30</span>,
@@ -241,8 +250,8 @@ server is not available. However on Windows, requests might block the session
 if the server is unavailable. <code>timeout</code> is the upper time limit that
 would take to fail the test. If the server fails to respond before the limit,
 the test will also fail.</p>
-<p><code>kill_server</code> stops the server as soon as possible. It sends signals to
-the server to cancel the unfinished tasks and shutdown.
+<p><code>kill_server,stop_server</code> stop the server as soon as possible. They
+send signals to the server to cancel the unfinished tasks and shutdown.
 <code>autoclose_server</code> stops the server when the current R session exits.</p>
     <h2 class="hasAnchor" id="server-configuration"><a class="anchor" href="#server-configuration"></a>Server Configuration</h2>
 
