@@ -318,7 +318,7 @@ task__remove <- function(task, wait = 0.01){
   }, silent = TRUE)
 
   try({
-    if(isin_server()){
+    if(!isin_server()){
       request_server(path = 'task/remove', host = task$submitted_to$host,
                      port = task$submitted_to$port, protocol = task$protocol,
                      body = list(task_name = task$task_name))
