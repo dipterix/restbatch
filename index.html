@@ -14,7 +14,7 @@
 <script src="pkgdown.js"></script><meta property="og:title" content="A Simple RESTful Web Service to Schedule R Batch Jobs">
 <meta property="og:description" content="Starts a web service accepting http requests, automatically
     create, schedule and scale the tasks via the package batchtools as
-    the backend. Provides integrations to monitor the submitted tasks in 
+    the backend. Provides integration to monitor the submitted tasks in 
     RStudio or Shiny apps.">
 <!-- mathjax --><script src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.5/MathJax.js" integrity="sha256-nvJJv9wWKEm88qvoQl9ekL2J+k/RWIsaSScxxlsrv8k=" crossorigin="anonymous"></script><script src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.5/config/TeX-AMS-MML_HTMLorMML.js" integrity="sha256-84DKXVJXs0/F8OTMzX4UR909+jtl4G7SPypPavF+GfA=" crossorigin="anonymous"></script><!--[if lt IE 9]>
 <script src="https://oss.maxcdn.com/html5shiv/3.7.3/html5shiv.min.js"></script>
@@ -190,6 +190,197 @@ Status for 10 jobs at 2021-02-04 05:04:55:
 <p>If a server is killed, all unfinished tasks will be canceled. The tasks can be resumed without re-run everything. This requires to submit with flag <code>pack=FALSE</code> and <code>force=TRUE</code>:</p>
 <div class="sourceCode" id="cb13"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span class="va">task</span><span class="op">$</span><span class="fu">submit</span><span class="op">(</span>pack<span class="op">=</span><span class="cn">FALSE</span>, force<span class="op">=</span><span class="cn">TRUE</span><span class="op">)</span></code></pre></div>
+</div>
+</div>
+<div id="3-remote-setup" class="section level2">
+<h2 class="hasAnchor">
+<a href="#3-remote-setup" class="anchor"></a>3. Remote setup</h2>
+<p>If you have a spare computer or a server, you can set up a <code>restbatch</code> service on that remote computer while submitting the tasks from the local computer.</p>
+<p><img src="https://user-images.githubusercontent.com/8163576/107587794-08311e00-6bc8-11eb-8677-d22c04659d49.png" width="90%"></p>
+<p>This setup requires that the remote server has a dedicated public IP (your own server) or shares the same intranet as your local computer (like computers in the same lab, or home WiFi).</p>
+<p>Deploying a server on the internet may cause security issues. To protect your data, <code>restbatch</code> uses <code>RSA</code> to authorize the connection and requires both remote server and local computer to possess the same private keys. If authentication is enabled, then you’ll need to add a private key to both remote server and local machine.</p>
+<div id="31-add-private-keys-to-both-local-machine-and-remote-server" class="section level3">
+<h3 class="hasAnchor">
+<a href="#31-add-private-keys-to-both-local-machine-and-remote-server" class="anchor"></a>3.1 Add private keys to both local machine and remote server</h3>
+<ul>
+<li>Step 1: you need to get the user ID on your <strong>local computer</strong>.</li>
+</ul>
+<div class="sourceCode" id="cb14"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span class="fu">restbatch</span><span class="fu">::</span><span class="fu"><a href="reference/restbatch-user.html">my_userid</a></span><span class="op">(</span><span class="op">)</span>
+<span class="co">#&gt; [1] "e5f6226c9f2e6874dd3a7f0944b13dcb"</span></code></pre></div>
+<ul>
+<li>Step 2: on the <strong>remote server</strong>, run the following R command. Remember to replace the <code>userid</code> with your actual ID above. Give your local computer a nice nick name using only letters digits and underscore.</li>
+</ul>
+<div class="sourceCode" id="cb15"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span class="va">pem</span> <span class="op">&lt;-</span> <span class="fu">restbatch</span><span class="fu">::</span><span class="fu"><a href="reference/restbatch-user.html">generate_pem</a></span><span class="op">(</span>userid <span class="op">=</span> <span class="st">"e5f6226c9f2e6874dd3a7f0944b13dcb"</span>, 
+                               username <span class="op">=</span> <span class="st">"A_nickname"</span>, overwrite <span class="op">=</span> <span class="cn">TRUE</span>,
+                               pem_file <span class="op">=</span> <span class="st">"~/Downloads/restbatch.pem"</span><span class="op">)</span>
+                               
+<span class="va">pem</span><span class="op">$</span><span class="va">password</span>
+<span class="co">#&gt; [1] "23ae8b0f"</span>
+
+<span class="fu"><a href="https://rdrr.io/r/base/cat.html">cat</a></span><span class="op">(</span><span class="va">pem</span><span class="op">$</span><span class="va">pem_file</span><span class="op">)</span>
+<span class="co">#&gt; ~/Downloads/restbatch.pem</span></code></pre></div>
+<ul>
+<li>Step 3: Go to your <code>~/Download</code> directory on the <strong>remote server</strong>, where will be a file <code>restbatch.pem</code>. The file looks like the followings if opened with <code>textEdit</code> or <code>notepad</code>.</li>
+</ul>
+<pre><code>-----BEGIN ENCRYPTED PRIVATE KEY-----
+MIIFHDBOBgkqhkiG9w0BBQ0wQTApBgkqhkiG9w0BBQwwHAQIvzx03ePC40ACAggA
+... [omitted]
+LsPKHCxgtRZbY9iKzGqOeg==
+-----END ENCRYPTED PRIVATE KEY-----</code></pre>
+<p>Send this file and the password <code>pem$password</code> together to your local computer.</p>
+<ul>
+<li>Step 4: on your <strong>local computer</strong>, download the <code>restbatch.pem</code>, and run the following R command to add the private key:</li>
+</ul>
+<div class="sourceCode" id="cb17"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span class="fu">restbatch</span><span class="fu">::</span><span class="fu"><a href="reference/restbatch-user.html">add_pem</a></span><span class="op">(</span>pem_file <span class="op">=</span> <span class="st">"&lt;path to your 'restbatch.pem'&gt;"</span>, 
+                   password <span class="op">=</span> <span class="st">"&lt;the password created by the server&gt;"</span>, 
+                   username <span class="op">=</span> <span class="st">"A_nickname"</span><span class="op">)</span></code></pre></div>
+<p>Now, the private key is added to your local machine</p>
+</div>
+<div id="32-connect-to-the-remote-server" class="section level3">
+<h3 class="hasAnchor">
+<a href="#32-connect-to-the-remote-server" class="anchor"></a>3.2 Connect to the remote server</h3>
+<p>To start the service on the <strong>remote server</strong>, run</p>
+<div class="sourceCode" id="cb18"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span class="fu">restbatch</span><span class="fu">::</span><span class="fu"><a href="reference/restbatch-server.html">ensure_server</a></span><span class="op">(</span>host<span class="op">=</span><span class="st">"0.0.0.0"</span>, port<span class="op">=</span><span class="fl">7033</span><span class="op">)</span></code></pre></div>
+<p>Once the server is on, you can now send tasks from the local computer. By default, tasks will be sent to your local host (“127.0.0.1”). To set your default host as the remote server, you need to get the server IP.</p>
+<p>I wrote a tool function that can get your server IP address: (run on your server)</p>
+<div class="sourceCode" id="cb19"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span class="fu">restbatch</span><span class="fu">:::</span><span class="fu">get_ip</span><span class="op">(</span><span class="cn">TRUE</span><span class="op">)</span>
+<span class="co">#&gt; $available</span>
+<span class="co">#&gt; [1] "127.0.0.1"    "0.0.0.0"      "10.0.0.29"</span>
+<span class="co">#&gt; </span>
+<span class="co">#&gt; $public</span>
+<span class="co">#&gt; [1] "128.100.100.101"</span></code></pre></div>
+<blockquote>
+<p>If your server is in the intranet, usually the IP is the third one in the first line (in this example, it’s “10.0.0.29”). If your server has a public IP address, then use the second line (in this example, it’s “128.100.100.101”)</p>
+</blockquote>
+<p>Now, go to your <strong>local computer</strong>, run the following command. Remember to change <code>"10.0.0.29"</code> to your server IP.</p>
+<div class="sourceCode" id="cb20"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span class="kw"><a href="https://rdrr.io/r/base/library.html">library</a></span><span class="op">(</span><span class="va">restbatch</span><span class="op">)</span>
+
+<span class="co"># set default host to be the remote server</span>
+<span class="fu"><a href="reference/default_url.html">default_host</a></span><span class="op">(</span><span class="st">"10.0.0.29"</span><span class="op">)</span>
+<span class="fu"><a href="reference/default_url.html">default_port</a></span><span class="op">(</span><span class="fl">7033</span><span class="op">)</span>
+
+<span class="fu">restbatch</span><span class="fu">::</span><span class="fu"><a href="reference/restbatch-server.html">server_alive</a></span><span class="op">(</span><span class="op">)</span></code></pre></div>
+<p>If the connect is successful, you will see the following result:</p>
+<pre><code>[1] TRUE
+attr(,"response")
+Response [http://10.0.0.29:7033/validate/ping]
+  Date: 2021-02-11 00:46
+  Status: 200
+  Content-Type: application/json
+  Size: 2.14 kB</code></pre>
+<p>Now everything will be the same.</p>
+</div>
+</div>
+<div id="4-service-configuration" class="section level2">
+<h2 class="hasAnchor">
+<a href="#4-service-configuration" class="anchor"></a>4 Service configuration</h2>
+<p>A <code>restbatch</code> service can be customized via a settings file like follows.</p>
+<div class="sourceCode" id="cb22"><pre class="sourceCode yml"><code class="sourceCode yaml"><span id="cb22-1"><a href="#cb22-1"></a><span class="fu">host</span><span class="kw">:</span><span class="at"> </span><span class="st">'127.0.0.1'</span></span>
+<span id="cb22-2"><a href="#cb22-2"></a><span class="fu">port</span><span class="kw">:</span><span class="at"> </span><span class="dv">7033</span></span>
+<span id="cb22-3"><a href="#cb22-3"></a><span class="fu">protocol</span><span class="kw">:</span><span class="at"> http</span></span>
+<span id="cb22-4"><a href="#cb22-4"></a><span class="fu">server_scripts</span><span class="kw">:</span></span>
+<span id="cb22-5"><a href="#cb22-5"></a><span class="at">  </span><span class="fu">startup_script</span><span class="kw">:</span><span class="at"> </span><span class="st">'{system.file("scheduler/startup.R", package = "restbatch")}'</span></span>
+<span id="cb22-6"><a href="#cb22-6"></a><span class="at">  </span><span class="fu">batch_cluster</span><span class="kw">:</span><span class="at"> </span><span class="st">'{system.file("scheduler/cluster.R", package = "restbatch")}'</span></span>
+<span id="cb22-7"><a href="#cb22-7"></a><span class="fu">modules</span><span class="kw">:</span></span>
+<span id="cb22-8"><a href="#cb22-8"></a><span class="at">  </span><span class="fu">task</span><span class="kw">:</span><span class="at"> </span><span class="st">'{system.file("scheduler/task.R", package = "restbatch")}'</span></span>
+<span id="cb22-9"><a href="#cb22-9"></a><span class="at">  </span><span class="fu">validate</span><span class="kw">:</span><span class="at"> </span><span class="st">'{system.file("scheduler/validate.R", package = "restbatch")}'</span></span>
+<span id="cb22-10"><a href="#cb22-10"></a><span class="at">  </span><span class="fu">info</span><span class="kw">:</span><span class="at"> </span><span class="st">'{system.file("scheduler/info.R", package = "restbatch")}'</span></span>
+<span id="cb22-11"><a href="#cb22-11"></a><span class="fu">options</span><span class="kw">:</span></span>
+<span id="cb22-12"><a href="#cb22-12"></a><span class="at">  </span><span class="fu">debug</span><span class="kw">:</span><span class="at"> </span><span class="ch">no</span></span>
+<span id="cb22-13"><a href="#cb22-13"></a><span class="at">  </span><span class="fu">require_auth</span><span class="kw">:</span><span class="at"> </span><span class="ch">yes</span></span>
+<span id="cb22-14"><a href="#cb22-14"></a><span class="at">  </span><span class="fu">anonymous_request</span><span class="kw">:</span><span class="at"> </span><span class="ch">no</span></span>
+<span id="cb22-15"><a href="#cb22-15"></a><span class="at">  </span><span class="fu">modules_require_auth</span><span class="kw">:</span><span class="at"> </span><span class="st">'task, validate'</span></span>
+<span id="cb22-16"><a href="#cb22-16"></a><span class="at">  </span><span class="fu">max_concurrent_tasks</span><span class="kw">:</span><span class="at"> </span><span class="dv">4</span></span>
+<span id="cb22-17"><a href="#cb22-17"></a><span class="at">  </span><span class="fu">max_concurrent_jobs</span><span class="kw">:</span><span class="at"> </span><span class="dv">2</span></span>
+<span id="cb22-18"><a href="#cb22-18"></a><span class="at">  </span><span class="fu">task_queue_interval</span><span class="kw">:</span><span class="at"> </span><span class="fl">0.5</span></span>
+<span id="cb22-19"><a href="#cb22-19"></a><span class="at">  </span><span class="fu">max_release_tasks_per_second</span><span class="kw">:</span><span class="at"> </span><span class="dv">100</span></span>
+<span id="cb22-20"><a href="#cb22-20"></a><span class="at">  </span><span class="fu">keep_alive</span><span class="kw">:</span><span class="at"> </span><span class="dv">1800</span></span>
+<span id="cb22-21"><a href="#cb22-21"></a><span class="at">  </span><span class="fu">task_root</span><span class="kw">:</span><span class="at"> </span><span class="st">'{restbatch::restbatch_getopt("task_root")}'</span></span>
+<span id="cb22-22"><a href="#cb22-22"></a><span class="at">  </span><span class="fu">max_nodetime</span><span class="kw">:</span><span class="at"> </span><span class="dv">864000</span></span>
+<span id="cb22-23"><a href="#cb22-23"></a><span class="at">  </span><span class="fu">func_newjob</span><span class="kw">:</span><span class="at"> restbatch:::run_task</span></span>
+<span id="cb22-24"><a href="#cb22-24"></a><span class="at">  </span><span class="fu">func_validate_server</span><span class="kw">:</span><span class="at"> restbatch::handler_validate_server</span></span></code></pre></div>
+<p>To load a settings file, save the above text in a file <code>settings.yaml</code> somewhere, and assign <code>settings</code> when starting the server:</p>
+<div class="sourceCode" id="cb23"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span class="co"># start_server or ensure_server</span>
+<span class="fu">restbatch</span><span class="fu">::</span><span class="fu"><a href="reference/restbatch-server.html">start_server</a></span><span class="op">(</span><span class="va">port</span>, <span class="va">host</span>, settings <span class="op">=</span> <span class="st">"&lt;path to settings.yaml&gt;"</span><span class="op">)</span></code></pre></div>
+<p>I’ll explain the main options in this file.</p>
+<div id="41-startup-settings" class="section level3">
+<h3 class="hasAnchor">
+<a href="#41-startup-settings" class="anchor"></a>4.1 Startup settings</h3>
+<ul>
+<li>
+<code>startup_script</code>: the file path to an R script to set up the server before launching services (like connect to databases, or remote nodes etc.). An example (also default script) can be found from <code><a href="https://rdrr.io/r/base/system.file.html">system.file("scheduler/startup.R", package = "restbatch")</a></code> (run this command in R to get its dynamic path)</li>
+<li>
+<code>batch_cluster</code>: script to schedule each job within a task. By default, each job will spawn a process locally (on the server). It is also possible to use <code>docker</code>, <code>SGE</code>, <code>Slurm</code>, <code>OpenLava</code>, etc. if your server is connected to some computing nodes and provides high-performance parallel services (please check <code><a href="https://rdrr.io/pkg/batchtools/man/makeClusterFunctions.html">?batchtools::makeClusterFunctions</a></code>)</li>
+</ul>
+</div>
+<div id="42-web-modules--authentication" class="section level3">
+<h3 class="hasAnchor">
+<a href="#42-web-modules--authentication" class="anchor"></a>4.2 Web modules &amp; Authentication</h3>
+<p>The <code>modules</code> list contains R <a href="https://www.rplumber.io/">plumber</a> scripts that provide different web entry points. The default entry points are <code>task</code>, <code>validate</code>, and <code>info</code>. Those module files will be mounted with <code><a href="https://www.rplumber.io/reference/pr_mount.html">plumber::pr_mount</a></code>. You can always insert new entry points/modules to the service by including <code>plumber</code> files.</p>
+<ul>
+<li>
+<code>task</code>: a <code>plumber</code> module that receives, creates, schedules, executes, collects, queries, and removes tasks</li>
+<li>
+<code>validate</code>: a <code>plumber</code> module that provides authentication filters (middle-layers) and some server-level operations (shutdown etc.)</li>
+<li>
+<code>info</code>: currently serialize task results as <code>JSON</code> formats that can be viewed or downloaded from website</li>
+</ul>
+<p>Authentication-related settings:</p>
+<ul>
+<li>
+<code>require_auth</code>: whether modules require authentications. It’s highly recommended to be on if deployed remotely, otherwise anyone can run commands on your server.</li>
+<li>
+<code>anonymous_request</code>: whether to use a fake <code>RSA</code> key. Only set to <code>yes</code> for debug use</li>
+<li>
+<code>modules_require_auth</code>: which modules require authentication? Use <code>,</code> to separate. Default are <code>task</code> and <code>validate</code> modules.</li>
+<li>
+<code>keep_alive</code>: once authorized, how long (seconds) will the token be valid until expired? Default is 1800 seconds (30 minutes). Once expired, the token needs to be renewed.</li>
+</ul>
+</div>
+<div id="43-parallel-settings" class="section level3">
+<h3 class="hasAnchor">
+<a href="#43-parallel-settings" class="anchor"></a>4.3 Parallel settings</h3>
+<ul>
+<li>
+<code>max_concurrent_tasks</code>: how many tasks are allowed to run at the same time</li>
+<li>
+<code>max_concurrent_jobs</code>: for each task, how many jobs are allowed.</li>
+</ul>
+<p>A task is created from the function <code>new_task2</code>, and each task may contain multiple jobs. For example, the following task contains 10 jobs (<code>x=1:10</code>, each job corresponds to an element):</p>
+<div class="sourceCode" id="cb24"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span class="va">task</span> <span class="op">&lt;-</span> <span class="fu">restbatch</span><span class="fu">::</span><span class="fu"><a href="reference/restbench-tasks.html">new_task2</a></span><span class="op">(</span><span class="kw">function</span><span class="op">(</span><span class="va">x</span><span class="op">)</span><span class="op">{</span>
+  <span class="co"># do something</span>
+<span class="op">}</span>, x <span class="op">=</span> <span class="fl">1</span><span class="op">:</span><span class="fl">10</span><span class="op">)</span>
+
+<span class="va">task</span><span class="op">$</span><span class="va">njobs</span>
+<span class="co">#&gt; [1] 10</span></code></pre></div>
+</div>
+</div>
+<div id="5-network-safety" class="section level2">
+<h2 class="hasAnchor">
+<a href="#5-network-safety" class="anchor"></a>5 Network safety</h2>
+<div id="scenario-1-running-as-a-local-service" class="section level3">
+<h3 class="hasAnchor">
+<a href="#scenario-1-running-as-a-local-service" class="anchor"></a>Scenario 1: Running as a local service</h3>
+<p>If the <code>restbatch</code> service is running locally and the host IP is set to <code>127.0.0.1</code>, it is relatively safe. In such case, connections from outside of your machine will not be granted access to the service and you don’t need any authentication. However, if you dispatch the service via anything other than <code>127.0.0.1</code>, then it is possible that someone outside will try to connect to your machine. Therefore it is highly recommended that <code>require_auth</code> is on, <code>anonymous_request</code> is off, and <code>modules_require_auth</code> covers both <code>task</code> and <code>validate</code>.</p>
+<p>If you run locally, you don’t need to set up private keys because there will be a key automatically generated for local use.</p>
+</div>
+<div id="scenario-2-running-in-an-intranet-or-on-a-public-domain-for-personallab-use" class="section level3">
+<h3 class="hasAnchor">
+<a href="#scenario-2-running-in-an-intranet-or-on-a-public-domain-for-personallab-use" class="anchor"></a>Scenario 2: Running in an intranet or on a public domain for personal/lab use</h3>
+<p>Default authentication is required. Don’t share your private keys to anyone that you don’t trust. If your network is hijacked or compromised, use <code>generate_pem</code> with <code>overwrite=TRUE</code> on the server to reset your credentials as soon as possible.</p>
+</div>
+<div id="scenario-3-public-service-for-arbitrary-users" class="section level3">
+<h3 class="hasAnchor">
+<a href="#scenario-3-public-service-for-arbitrary-users" class="anchor"></a>Scenario 3: Public service for arbitrary users</h3>
+<p>Not recommended to run bare-bone. This is a <code>restbatch</code> task is essentially a collection of R scripts that has the potential to run anything. It’s highly recommended that you wrap the <code>restbatch</code> service into <a href="https://www.docker.com/">docker containers</a> for each user, such that users’ activities are limited to docker container environments.</p>
 </div>
 </div>
 </div>
