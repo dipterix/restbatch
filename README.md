@@ -9,8 +9,8 @@
 Starts simple '[RESTful](https://restfulapi.net/)' R servers running batch jobs anywhere to unleash the computing power:
 
 * On local machine
-* Runs within a lab that has idle computers or servers (see [remote setups](#remote-setups))
-* Runs on a public server, see [safety](#safety) and [remote setups](#remote-setups) (under construction)
+* Runs within a lab that has idle computers or servers (see [remote setups](#3-remote-setups))
+* Runs on a public server, see [network safety](#5-network-safety) and [remote setups](#3-remote-setups) (under construction)
 
 The package automatically queues and schedules R tasks that would run hours or days without blocking the main session. It runs even if you exit the main R session. The tasks can be monitored and inspected in multiple ways.
 
@@ -319,7 +319,7 @@ I'll explain the main options in this file.
 
 The `modules` list contains R [plumber](https://www.rplumber.io/) scripts that provide different web entry points. The default entry points are `task`, `validate`, and `info`. Those module files will be mounted with `plumber::pr_mount`. You can always insert new entry points/modules to the service by including `plumber` files.
 
-* `task`: a `plumber` module that receives, creates, schedules, executes, collects, queries, and removes tasks
+* `task`: a `plumber` module that receives, schedules, executes, collects, queries, and removes tasks
 * `validate`: a `plumber` module that provides authentication filters (middle-layers) and some server-level operations (shutdown etc.)
 * `info`: currently serialize task results as `JSON` formats that can be viewed or downloaded from website
 

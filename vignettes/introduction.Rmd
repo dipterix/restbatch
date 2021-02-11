@@ -1,0 +1,175 @@
+---
+title: "1. Introduction"
+output: rmarkdown::html_vignette
+vignette: >
+  %\VignetteIndexEntry{1. Introduction}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}
+---
+
+```{r, include = FALSE}
+knitr::opts_chunk$set(
+  collapse = TRUE,
+  eval = FALSE,
+  comment = "#>"
+)
+```
+
+## 1. Why `restbatch`
+
+Many algorithms require minutes, hours, or even days to run. `restbatch` provides an implementation that runs in the background managing the running algorithms (tasks) and automatically dispatch to the clusters (if configured). The dispatcher (server) can be set as a service that runs even after the current session closed. For example:
+
+Use-case 1: users can schedule tasks, let the tasks running without blocking the systems. They may even exit the session, and pick the results up next morning in another session. 
+
+Use-case 2: R-shiny apps can schedule hundreds of tasks without freezing the front-end website. The tasks run even after current shiny sessions becoming expired. The users can retrieve their results in new sessions.
+
+## 2. A simple show-case
+
+### 2.1 Start a server
+
+A local server can be started with a single line. This will start a service that runs in the background.
+
+```{r setup}
+restbatch::start_server()
+#> Starting a restbatch server at http://127.0.0.1:7033
+#> You have chosen this server to be the default server.
+```
+
+By default, the local server runs at port `7033` on the 'localhost' IP `127.0.0.1`. It only receives request from your own computer, and rejects requests from anyone else. The port `7033` will be occupied by the `restbatch` service. 
+
+Once the service is started, it may take a while to get everything set up. you can use `server_alive` function to validate the server status.
+
+```{r validate}
+restbatch::server_alive()
+#> [1] TRUE
+#> attr(,"response")
+#> Response [http://127.0.0.1:7033/validate/ping]
+#>   Date: 2021-02-11 18:16
+#>   Status: 200
+#>   Content-Type: application/json
+#>   Size: 652 B
+#> 
+```
+
+
+Alternatively, you can use `ensure_server` to start a server, and wait until the server is ready.
+
+```{r}
+restbatch::ensure_server()
+```
+
+
+### 2.2 Create, submit, monitor, collect, restore, and remove a task
+
+Let's approximate `pi` using the following function and we want to see how close approximation can be by setting different `n`.
+
+```{r}
+piApprox = function(n) {
+  d = sqrt(runif(n)^2 + runif(n)^2)
+  4 * mean(d <= 1)
+}
+```
+
+1. Create a task: A task can be created via `new_task2`
+
+```{r}
+task <- restbatch::new_task2(function(x){
+  set.seed(1000)
+  piApprox(10^x)
+}, x = 1:8, task_name = "demo_task")
+
+task
+#> Task (client proxy from the `restbatch` package)
+#> Task name : [22dbdc9ec25174a768c15e03c7356780__demo_task__452ce031c6ba672d]
+#> Total jobs: 8
+#> Submitted to: [NA]
+#> 
+#> * Use `task$submit()` to submit this task
+```
+
+2. Submit a task: To start the task, submit to the `restbatch` server:
+
+```{r}
+task$submit()
+```
+
+3. Monitor a task: You can monitor and track the progress using `task$monitor()`. 
+
+```
+Task ID name: 22dbdc9ec25174a768c15e03c7356780__demo_task__452ce031c6ba672d
+Task local path: /Users/dipterix/tasks/...
+
+Task has not been submitted/scheduled. Please run the following command to 
+submit task:
+
+	task$submit()
+
+Jobs submitted to: 127.0.0.1:7033
+
+You can download the task results once it's finished: 
+	http://127.0.0.1:7033/info/results?task_name=22dbdc9ec25174a768c15e03c7356780_
+_demo_task__452ce031c6ba672d
+
+Start listening to the server report...
+6 finished out of 8
+7 finished out of 8
+8 finished out of 8
+
+Task finished
+```
+
+Alternatively, you can use `task$resolved()`, or `task$server_status()` to check if it's finished.
+
+```
+task$resolved()
+#> [1] TRUE
+
+as.data.frame(task$server_status())
+#>   status error           timestamp message n_total n_started n_done n_error
+#> 1 finish FALSE 2021-02-11 14:40:23      OK       8         8      8       0
+```
+
+4. Restore a task: Once resolved, `collect` method will read the results into memory:
+
+```{r}
+unlist(task$collect())
+#> [1] 3.200000 3.160000 3.196000 3.136000 3.146120 3.141448 3.141256 3.141440
+```
+
+5. Restore a task from another places: Once a task is created, you can always restore the results in another R session using `restore_task2` function. The task name can be obtained from previous `task$task_name` field.
+
+```{r}
+task_restored <- restbatch::restore_task2(
+  task_name = "22dbdc9ec25174a768c15e03c7356780__demo_task__452ce031c6ba672d"
+)
+
+task_restored
+#> Task (client proxy from the `restbatch` package)
+#> Task name : [22dbdc9ec25174a768c15e03c7356780__demo_task__452ce031c6ba672d]
+#> Total jobs: 8
+#> Submitted to: http://127.0.0.1:7033/
+#> Status for 8 jobs at 2021-02-11 14:48:42:
+#>   Submitted    : 8 (100.0%)
+#>   -- Queued    : 0 (  0.0%)
+#>   -- Started   : 8 (100.0%)
+#>   ---- Running : 0 (  0.0%)
+#>   ---- Done    : 8 (100.0%)
+#>   ---- Error   : 0 (  0.0%)
+#>   ---- Expired : 0 (  0.0%)
+#> 
+#> *The task is finished, but the result has not been collected yet.
+#> Use `task$collect()` to collect the results.
+```
+
+6. Remove a task: When a task is finished and will not be used anymore, it is always recommended to remove it. 
+
+```{r}
+task$remove()
+#> [1] TRUE
+```
+
+Removing a task will erase the entire folders from both client and server side. 
+
+
+
+

@@ -1,0 +1,14 @@
+## 2.3 Designs
+
+The package `restbatch` provides a server-client design that runs R sessions (server) in the background that schedule, and run tasks sent by the clients. The clients are also R sessions that the users interact with. The clients and the servers communicate through the `http` protocol.
+
+* A server/dispatcher: an R session receiving requests, schedule and execute batch jobs (e.g. local machine, computers in the same intranet, or a high-performance server with computing nodes)
+* A client: an R session creates and sends tasks to the server (e.g. your interacting R session, a shiny app)
+* Protocol: the method that a server and a client communicates
+* A task: contains an algorithm "function" and multiple "elements" to apply, e.g. an experiment (function) on different subjects (elements), a simulation (function) in different scenarios (elements)
+* A batch job: the basic unit of a task: the task "function" being applied to one single "element". A task is a collection of multiple batch jobs
+
+
+Simple case example
+
+By default `restbatch`
