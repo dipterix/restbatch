@@ -7,7 +7,7 @@ Authors@R: c(
     )
 Description: Starts a web service accepting 'http' requests, automatically
     create, schedule and scale the tasks via the package 'batchtools' as
-    the backend. Provides integrations to monitor the submitted tasks in 
+    the backend. Provides integration to monitor the submitted tasks in 
     'RStudio' or 'Shiny' apps.
 License: GPL-3
 Encoding: UTF-8

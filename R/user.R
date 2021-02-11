@@ -112,7 +112,7 @@ add_pem <- function(pem_file, password = '', username = get_username()) {
   key <- openssl::read_key(pem_file, password)
   private_key <- as.character(openssl::bignum(key))
   userid <- get_user()
-  username <- clean_db_entry(username, '[^a-zA-Z0-9_]', msg = "invalid user name. Please only include letters, digits, `-` and/or `_`.")
+  username <- clean_db_entry(username, '[^a-zA-Z0-9_-]', msg = "invalid user name. Please only include letters, digits, `-` and/or `_`.")
 
   # check if the key exists
   keys <- private_key(userid)
