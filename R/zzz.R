@@ -1,6 +1,6 @@
 # To pass checks and to prevent failures
 # In the run time, .globals will be replaced with fastmap2
-.globals <- new.env()
+.globals <- list()
 
 
 .onLoad <- function(libname, pkgname){

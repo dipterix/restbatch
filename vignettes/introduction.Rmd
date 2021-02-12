@@ -25,12 +25,16 @@ Use-case 2: R-shiny apps can schedule hundreds of tasks without freezing the fro
 
 ## 2. A simple show-case
 
+```{r setup}
+library(restbatch)
+```
+
 ### 2.1 Start a server
 
 A local server can be started with a single line. This will start a service that runs in the background.
 
-```{r setup}
-restbatch::start_server()
+```{r}
+start_server()
 #> Starting a restbatch server at http://127.0.0.1:7033
 #> You have chosen this server to be the default server.
 ```
@@ -40,7 +44,7 @@ By default, the local server runs at port `7033` on the 'localhost' IP `127.0.0.
 Once the service is started, it may take a while to get everything set up. you can use `server_alive` function to validate the server status.
 
 ```{r validate}
-restbatch::server_alive()
+server_alive()
 #> [1] TRUE
 #> attr(,"response")
 #> Response [http://127.0.0.1:7033/validate/ping]
@@ -55,7 +59,7 @@ restbatch::server_alive()
 Alternatively, you can use `ensure_server` to start a server, and wait until the server is ready.
 
 ```{r}
-restbatch::ensure_server()
+ensure_server()
 ```
 
 
@@ -73,7 +77,7 @@ piApprox = function(n) {
 1. Create a task: A task can be created via `new_task2`
 
 ```{r}
-task <- restbatch::new_task2(function(x){
+task <- new_task2(function(x){
   set.seed(1000)
   piApprox(10^x)
 }, x = 1:8, task_name = "demo_task")
@@ -139,7 +143,7 @@ unlist(task$collect())
 5. Restore a task from another places: Once a task is created, you can always restore the results in another R session using `restore_task2` function. The task name can be obtained from previous `task$task_name` field.
 
 ```{r}
-task_restored <- restbatch::restore_task2(
+task_restored <- restore_task2(
   task_name = "22dbdc9ec25174a768c15e03c7356780__demo_task__452ce031c6ba672d"
 )
 
@@ -170,6 +174,20 @@ task$remove()
 
 Removing a task will erase the entire folders from both client and server side. 
 
+### 2.3 Stop a server
 
+To stop a server immediately, call `stop_server` or `kill_server`.
 
+```{r}
+stop_server()
+kill_server()
+```
+
+If you want to keep the server running until the end of current R session, please use `autoclose_server`. This function will ensure the server is closed when you exit R session. 
+
+```{r}
+autoclose_server()
+```
+
+When a server is closed, all unfinished (including the running tasks) will be `canceled`. These tasks will automatically restart once the server is launched again. However, in such case, the server will only use its half resources to execute restarted tasks, so that there are resources available for newly added ones. If you want to avoid restarting canceled tasks, please remove them (using `$remove` method).
 

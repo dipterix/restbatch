@@ -489,8 +489,11 @@ start_server <- function(
   if(is.null(.globals$servers[[host]])){
     .globals$servers[[host]] <- dipsaus::fastmap2()
   }
-  dipsaus::list_to_fastmap2(item, .globals$servers[[host]][[port]])
-
+  if(is.null(.globals$servers[[host]][[port]])){
+    .globals$servers[[host]][[port]] <- item
+  } else {
+    dipsaus::list_to_fastmap2(item, .globals$servers[[host]][[port]])
+  }
 
   message(sprintf("Starting a restbatch server at %s://%s:%s", protocol, host, port))
 
@@ -511,33 +514,54 @@ autoclose_server <- function(host = default_host(), port = default_port(), auto_
   # fastmap is a list so we cannot register finalizers
   # ensure supervised servers are correctly removed when R session exit
 
+  if(isin_server()){
+    stop("Cannot stop server within a task")
+  }
+
+  port <- as.integer(port)
   if(length(port) != 1 || is.na(port) || !is.integer(port) || port <= 0 || port > 65535){
     stop("Invalid port: must be an integer.")
   }
 
-  if(is.null(.globals$servers[[host]])){
-    .globals$servers[[host]] <- dipsaus::fastmap2()
-  }
-  if(is.null(.globals$servers[[host]][[port]])){
-    .globals$servers[[host]][[port]] <- dipsaus::fastmap2()
-  }
-  item <- .globals$servers[[host]][[port]]
-  item$supervise <- isTRUE(auto_close)
-  item$native <- FALSE
-  item$local <- host_is_local(host)
+  server_list <- getOption("restbatch_serverlist", NULL)
 
-  reg.finalizer(environment(.subset2(item, "as_list")), function(e){
-    if(isTRUE(e$get("supervise"))){
-      # Connection could be closed or the https is disabled, or simply don't have
-      # the correct right to shut down the server
-      try({
-        kill_server(host = e$get("host"), port = e$get("port"), protocol = "https")
-      }, silent = TRUE)
-      try({
-        kill_server(host = e$get("host"), port = e$get("port"), protocol = "http")
-      }, silent = TRUE)
-    }
-  })
+  if(!is.environment(server_list)){
+    server_list <- new.env(parent = emptyenv())
+    options(restbatch_serverlist = server_list)
+  }
+
+  url <- sprintf("%s:%d", host, port)
+  if(is.null(server_list[[url]])){
+    server_list[[url]] <- new.env(parent = emptyenv())
+
+    reg.finalizer(server_list[[url]], function(e){
+      if(isTRUE(e$supervise)){
+        message("Stopping `restbatch` server at ", e$host, ":", e$port)
+        # Connection could be closed or the https is disabled, or simply don't have
+        # the correct right to shut down the server
+        try({
+          kill_server(host = e$host, port = e$port, protocol = "https")
+        }, silent = TRUE)
+        try({
+          kill_server(host = e$host, port = e$port, protocol = "http")
+        }, silent = TRUE)
+      }
+    }, onexit = TRUE)
+
+  }
+  supervise <- isTRUE(auto_close)
+  server_list[[url]]$supervise <- supervise
+  server_list[[url]]$native <- FALSE
+  server_list[[url]]$local <- host_is_local(host)
+  server_list[[url]]$host <- host
+  server_list[[url]]$port <- port
+
+  if(supervise){
+    message(sprintf("Auto-close the server %s:%d at the end of the current session", host, port))
+  }
+
+  rm(port, host, auto_close, server_list, supervise)
+  return(invisible())
 }
 
 #' @rdname restbatch-server
