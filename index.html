@@ -86,23 +86,19 @@
 <a href="#a-small-restful-framework-to-run-batch-r-scripts-in-the-background" class="anchor"></a>A small ‘RESTful’ framework to run batch R scripts in the background</h1></div>
 <!-- badges: start -->
 
-<blockquote>
-<p>This package is still under development. A road map will be built on Github soon.</p>
-</blockquote>
 <p>Starts simple ‘<a href="https://restfulapi.net/">RESTful</a>’ R servers running batch jobs anywhere to unleash the computing power:</p>
 <ul>
 <li>On local machine</li>
 <li>Runs within a lab that has idle computers or servers (see <a href="#3-remote-setups">remote setups</a>)</li>
 <li>Runs on a public server, see <a href="#5-network-safety">network safety</a> and <a href="#3-remote-setups">remote setups</a> (under construction)</li>
 </ul>
-<p>The package automatically queues and schedules R tasks that would run hours or days without blocking the main session. It runs even if you exit the main R session. The tasks can be monitored and inspected in multiple ways.</p>
+<p>The package automatically queues and schedules R tasks that would run hours or days without blocking the main session. It runs even if you exit the main R session. For example, you can run <code>shiny</code> app, schedule tasks that run for minutes without freezing the browser. If you have a server running the service, you can schedule batch jobs that runs over-night and pick the results up next morning. The tasks can be monitored and inspected in multiple ways.</p>
 <p>Try <code>restbatch</code> if you need to run R scripts in the background that take minutes, hours, or even days. Don’t use <code>restbatch</code> if the tasks are micro-operations (use <code>clustermq</code> instead).</p>
 <div id="1-installation" class="section level2">
 <h2 class="hasAnchor">
 <a href="#1-installation" class="anchor"></a>1. Installation</h2>
 <div class="sourceCode" id="cb1"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span class="co"># install.packages("remotes")</span>
-<span class="fu">remotes</span><span class="fu">::</span><span class="fu"><a href="https://remotes.r-lib.org/reference/install_github.html">install_github</a></span><span class="op">(</span><span class="st">"dipterix/restbatch"</span><span class="op">)</span></code></pre></div>
+<code class="sourceCode R"><span class="fu"><a href="https://rdrr.io/r/utils/install.packages.html">install.packages</a></span><span class="op">(</span><span class="st">"restbatch"</span><span class="op">)</span></code></pre></div>
 <p>The package is to be on CRAN once fully tested</p>
 </div>
 <div id="2-basic-usage" class="section level2">
@@ -431,6 +427,7 @@ Response [http://10.0.0.29:7033/validate/ping]
   <div class="dev-status">
 <h2>Dev status</h2>
 <ul class="list-unstyled">
+<li><a href="https://CRAN.R-project.org/package=restbatch"><img src="https://www.r-pkg.org/badges/version/restbatch" alt="CRAN status"></a></li>
 <li><a href="https://github.com/dipterix/restbench/actions"><img src="https://github.com/dipterix/restbench/workflows/R-CMD-check/badge.svg" alt="R-CMD-check"></a></li>
 </ul>
 </div>
