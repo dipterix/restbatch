@@ -12,8 +12,8 @@
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.12.1/css/v4-shims.min.css" integrity="sha256-wZjR52fzng1pJHwx4aV2AO3yyTOXrcDW7jBpJtTwVxw=" crossorigin="anonymous">
 <!-- clipboard.js --><script src="https://cdnjs.cloudflare.com/ajax/libs/clipboard.js/2.0.6/clipboard.min.js" integrity="sha256-inc5kl9MA1hkeYUt+EC3BhlIgyp/2jDIyBLS6k3UxPI=" crossorigin="anonymous"></script><!-- headroom.js --><script src="https://cdnjs.cloudflare.com/ajax/libs/headroom/0.11.0/headroom.min.js" integrity="sha256-AsUX4SJE1+yuDu5+mAVzJbuYNPHj/WroHuZ8Ir/CkE0=" crossorigin="anonymous"></script><script src="https://cdnjs.cloudflare.com/ajax/libs/headroom/0.11.0/jQuery.headroom.min.js" integrity="sha256-ZX/yNShbjqsohH1k95liqY9Gd8uOiE1S4vZc+9KQ1K4=" crossorigin="anonymous"></script><!-- pkgdown --><link href="pkgdown.css" rel="stylesheet">
 <script src="pkgdown.js"></script><meta property="og:title" content="A Simple RESTful Web Service to Schedule R Batch Jobs">
-<meta property="og:description" content="Starts a web service accepting http requests, automatically
-    create, schedule and scale the tasks via the package batchtools as
+<meta property="og:description" content="Starts web services accepting http requests, automatically
+    receive, schedule and scale the tasks via the package batchtools as
     the backend. Provides integration to monitor the submitted tasks in 
     RStudio or Shiny apps.">
 <!-- mathjax --><script src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.5/MathJax.js" integrity="sha256-nvJJv9wWKEm88qvoQl9ekL2J+k/RWIsaSScxxlsrv8k=" crossorigin="anonymous"></script><script src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.5/config/TeX-AMS-MML_HTMLorMML.js" integrity="sha256-84DKXVJXs0/F8OTMzX4UR909+jtl4G7SPypPavF+GfA=" crossorigin="anonymous"></script><!--[if lt IE 9]>
@@ -49,8 +49,27 @@
 <li>
   <a href="reference/index.html">Reference</a>
 </li>
+<li class="dropdown">
+  <a href="#" class="dropdown-toggle" data-toggle="dropdown" role="button" aria-expanded="false">
+    Articles
+     
+    <span class="caret"></span>
+  </a>
+  <ul class="dropdown-menu" role="menu">
+<li>
+      <a href="articles/introduction.html">1. Introduction</a>
+    </li>
+  </ul>
+</li>
       </ul>
-<ul class="nav navbar-nav navbar-right"></ul>
+<ul class="nav navbar-nav navbar-right">
+<li>
+  <a href="https://github.com/dipterix/restbatch/">
+    <span class="fab fa-github fa-lg"></span>
+     
+  </a>
+</li>
+      </ul>
 </div>
 <!--/.nav-collapse -->
   </div>
@@ -73,8 +92,8 @@
 <p>Starts simple ‘<a href="https://restfulapi.net/">RESTful</a>’ R servers running batch jobs anywhere to unleash the computing power:</p>
 <ul>
 <li>On local machine</li>
-<li>Runs within a lab that has idle computers or servers (see <a href="#remote-setups">remote setups</a>)</li>
-<li>Runs on a public server, see <a href="#safety">safety</a> and <a href="#remote-setups">remote setups</a> (under construction)</li>
+<li>Runs within a lab that has idle computers or servers (see <a href="#3-remote-setups">remote setups</a>)</li>
+<li>Runs on a public server, see <a href="#5-network-safety">network safety</a> and <a href="#3-remote-setups">remote setups</a> (under construction)</li>
 </ul>
 <p>The package automatically queues and schedules R tasks that would run hours or days without blocking the main session. It runs even if you exit the main R session. The tasks can be monitored and inspected in multiple ways.</p>
 <p>Try <code>restbatch</code> if you need to run R scripts in the background that take minutes, hours, or even days. Don’t use <code>restbatch</code> if the tasks are micro-operations (use <code>clustermq</code> instead).</p>
@@ -94,7 +113,7 @@
 <a href="#21-start-a-restbatch-server" class="anchor"></a>2.1 Start a <code>restbatch</code> server</h3>
 <p>In <code>R</code> or <code>RStudio</code> console</p>
 <div class="sourceCode" id="cb2"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span class="kw"><a href="https://rdrr.io/r/base/library.html">library</a></span><span class="op">(</span><span class="va">restbatch</span><span class="op">)</span>
+<code class="sourceCode R"><span class="kw"><a href="https://rdrr.io/r/base/library.html">library</a></span><span class="op">(</span><span class="va"><a href="https://github.com/dipterix/restbatch">restbatch</a></span><span class="op">)</span>
 
 <span class="fu"><a href="reference/default_url.html">default_host</a></span><span class="op">(</span><span class="st">"127.0.0.1"</span><span class="op">)</span>
 <span class="fu"><a href="reference/default_url.html">default_port</a></span><span class="op">(</span><span class="fl">7033</span><span class="op">)</span>
@@ -146,7 +165,7 @@ Status for 10 jobs at 2021-02-04 05:04:55:
 <p>Keep down the task name. In this example, the task name is <code>e5f6226c9f2e6874dd3a7f0944b13dcb__Test</code>. Now it’s safe to close your R session.</p>
 <p>Open another R session, the task can be restored via</p>
 <div class="sourceCode" id="cb6"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span class="kw"><a href="https://rdrr.io/r/base/library.html">library</a></span><span class="op">(</span><span class="va">restbatch</span><span class="op">)</span>
+<code class="sourceCode R"><span class="kw"><a href="https://rdrr.io/r/base/library.html">library</a></span><span class="op">(</span><span class="va"><a href="https://github.com/dipterix/restbatch">restbatch</a></span><span class="op">)</span>
 <span class="va">task</span> <span class="op">&lt;-</span> <span class="fu"><a href="reference/restbench-tasks.html">restore_task2</a></span><span class="op">(</span><span class="st">"e5f6226c9f2e6874dd3a7f0944b13dcb__Test"</span><span class="op">)</span></code></pre></div>
 <p>To obtain the task results, it is always a good practice to check whether a task has been finished or not. This could be achieved via methods <code>resolved</code> or <code>server_status</code> (assuming the server is still running).</p>
 <div class="sourceCode" id="cb7"><pre class="downlit sourceCode r">
@@ -259,7 +278,7 @@ LsPKHCxgtRZbY9iKzGqOeg==
 </blockquote>
 <p>Now, go to your <strong>local computer</strong>, run the following command. Remember to change <code>"10.0.0.29"</code> to your server IP.</p>
 <div class="sourceCode" id="cb20"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span class="kw"><a href="https://rdrr.io/r/base/library.html">library</a></span><span class="op">(</span><span class="va">restbatch</span><span class="op">)</span>
+<code class="sourceCode R"><span class="kw"><a href="https://rdrr.io/r/base/library.html">library</a></span><span class="op">(</span><span class="va"><a href="https://github.com/dipterix/restbatch">restbatch</a></span><span class="op">)</span>
 
 <span class="co"># set default host to be the remote server</span>
 <span class="fu"><a href="reference/default_url.html">default_host</a></span><span class="op">(</span><span class="st">"10.0.0.29"</span><span class="op">)</span>
@@ -326,7 +345,7 @@ Response [http://10.0.0.29:7033/validate/ping]
 <p>The <code>modules</code> list contains R <a href="https://www.rplumber.io/">plumber</a> scripts that provide different web entry points. The default entry points are <code>task</code>, <code>validate</code>, and <code>info</code>. Those module files will be mounted with <code><a href="https://www.rplumber.io/reference/pr_mount.html">plumber::pr_mount</a></code>. You can always insert new entry points/modules to the service by including <code>plumber</code> files.</p>
 <ul>
 <li>
-<code>task</code>: a <code>plumber</code> module that receives, creates, schedules, executes, collects, queries, and removes tasks</li>
+<code>task</code>: a <code>plumber</code> module that receives, schedules, executes, collects, queries, and removes tasks</li>
 <li>
 <code>validate</code>: a <code>plumber</code> module that provides authentication filters (middle-layers) and some server-level operations (shutdown etc.)</li>
 <li>
@@ -387,7 +406,16 @@ Response [http://10.0.0.29:7033/validate/ping]
   </div>
 
   <div class="col-md-3 hidden-xs hidden-sm" id="pkgdown-sidebar">
-    <div class="license">
+    <div class="links">
+<h2>Links</h2>
+<ul class="list-unstyled">
+<li>Browse source code at <br><a href="https://github.com/dipterix/restbatch/">https://​github.com/​dipterix/​restbatch/​</a>
+</li>
+<li>Report a bug at <br><a href="https://github.com/dipterix/restbatch/issues">https://​github.com/​dipterix/​restbatch/​issues</a>
+</li>
+</ul>
+</div>
+<div class="license">
 <h2>License</h2>
 <ul class="list-unstyled">
 <li><a href="https://www.r-project.org/Licenses/GPL-3">GPL-3</a></li>

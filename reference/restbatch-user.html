@@ -87,9 +87,26 @@
 <li>
   <a href="../reference/index.html">Reference</a>
 </li>
+<li class="dropdown">
+  <a href="#" class="dropdown-toggle" data-toggle="dropdown" role="button" aria-expanded="false">
+    Articles
+     
+    <span class="caret"></span>
+  </a>
+  <ul class="dropdown-menu" role="menu">
+    <li>
+      <a href="../articles/introduction.html">1. Introduction</a>
+    </li>
+  </ul>
+</li>
       </ul>
       <ul class="nav navbar-nav navbar-right">
-        
+        <li>
+  <a href="https://github.com/dipterix/restbatch/">
+    <span class="fab fa-github fa-lg"></span>
+     
+  </a>
+</li>
       </ul>
       
     </div><!--/.nav-collapse -->
@@ -104,7 +121,7 @@
   <div class="col-md-9 contents">
     <div class="page-header">
     <h1>Give additional user server access</h1>
-    
+    <small class="dont-index">Source: <a href='https://github.com/dipterix/restbatch/blob/master/R/user.R'><code>R/user.R</code></a></small>
     <div class="hidden name"><code>restbatch-user.Rd</code></div>
     </div>
 
@@ -190,17 +207,17 @@ any one to file task requests.</p></td>
 <span class='co'># Now share the passcode and pen_file to the end user</span>
 <span class='co'># password is</span>
 <span class='va'>pem</span><span class='op'>$</span><span class='va'>password</span>
-</div><div class='output co'>#&gt; [1] "62d3bc7c"</div><div class='input'>
+</div><div class='output co'>#&gt; [1] "6f9d8371"</div><div class='input'>
 <span class='co'># encoded pem_file is stored at</span>
 <span class='va'>pem</span><span class='op'>$</span><span class='va'>pem_file</span>
-</div><div class='output co'>#&gt; [1] "/var/folders/24/8k48jl6d249_n_qfxwsl6xvm0000gn/T//Rtmpo0RGtV/file673890c720"</div><div class='input'>
+</div><div class='output co'>#&gt; [1] "/var/folders/24/8k48jl6d249_n_qfxwsl6xvm0000gn/T//RtmpmcurS3/file9626a608f88"</div><div class='input'>
 <span class='co'># ---------- If you are the end user ----------</span>
 
 <span class='co'># Send your user ID and your preferred user name to the system admin</span>
 <span class='co'># user ID can be obtained from `my_userid()`</span>
 
 <span class='fu'>my_userid</span><span class='op'>(</span><span class='op'>)</span>  <span class='co'># something like "22dbdc9e876a74a768c15e03c7356780" (32-length)</span>
-</div><div class='output co'>#&gt; [1] "3a059da2f1106d3f6b9a6be5c3e47f02"</div><div class='input'>
+</div><div class='output co'>#&gt; [1] "36a075c7cf3b6afad67d78df72905c23"</div><div class='input'>
 <span class='co'># You will get a passcode and a pem file from the system admin</span>
 <span class='co'># (see variable `pem` in the previous example)</span>
 
