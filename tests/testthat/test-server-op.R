@@ -11,14 +11,17 @@ test_that("Server operation - local UNIX", {
   default_protocol('http')
 
   # ensure the server is on
-  if(ensure_server()){ on.exit({ try({
+  if(ensure_server(settings = system.file("debug_settings.yaml", package = "restbatch"))){ on.exit({ try({
     kill_server(port = 7035)
   }, silent = TRUE) }, add = TRUE) }
 
   testthat::expect_true(isTRUE(server_alive()))
 
   # Make a task
-  task <- new_task2(function(x){ x + 1 }, 1)
+  task <- new_task2(function(x){
+    # Sys.getpid()
+    x + 1
+  }, 1)
   on.exit({
     if(dir.exists(task$task_dir)){
       task$remove()
@@ -63,15 +66,15 @@ test_that("Server operation - local UNIX", {
   res <- task$collect()
   expect_true(inherits(res[[2]], 'simpleError'))
 
-  kill_server(port = 7035, host = '127.0.0.1')
   task$remove()
+  kill_server(port = 7035, host = '127.0.0.1')
 
 })
 
 
 test_that("Server operation - WINDOWS/CRAN", {
 
-  testthat::expect_true(isTRUE(!server_alive()))
+  testthat::expect_true(isTRUE(!server_alive(port = 7032)))
 
   # Make a task
   task <- new_task2(function(x){ x + 1 }, 1)

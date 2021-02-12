@@ -345,11 +345,11 @@ kill_server <- function(wait = TRUE, host = default_host(allow0 = FALSE), port =
     ret <- httr::content(res)
     ret <- ret$message[[1]]
 
-    message(ret)
+    message("\n", ret)
 
   }, error = function(e){
-    e$message <- paste0("Failed to close the server due to:\n", e$message)
-    stop(e)
+    # e$message <- paste0("Failed to close the server due to:\n", e$message)
+    # stop(e)
   })
 
   if(!wait){
@@ -475,9 +475,11 @@ start_server <- function(
 
       if(op_sys == 'darwin'){
         # Not sure why osx does not disown the process (hardened?)
-        system2("bash", c(start_script, sprintf('"%s"', R.home('bin/R'))), stdout = FALSE, stderr = FALSE, wait = FALSE)
+        system2("bash", c(start_script, sprintf('"%s"', R.home('bin/R'))),
+                stdout = FALSE, stderr = FALSE, wait = FALSE)
       } else {
-        system2(start_script , sprintf('"%s"', R.home('bin/R')), stdout = FALSE, stderr = FALSE, wait = FALSE)
+        system2(start_script , sprintf('"%s"', R.home('bin/R')),
+                stdout = FALSE, stderr = FALSE, wait = FALSE)
       }
 
     }
@@ -495,7 +497,7 @@ start_server <- function(
     dipsaus::list_to_fastmap2(item, .globals$servers[[host]][[port]])
   }
 
-  message(sprintf("Starting a restbatch server at %s://%s:%s", protocol, host, port))
+  message(sprintf("\nStarting a restbatch server at %s://%s:%s", protocol, host, port))
 
   if(make_default){
     default_host(host)
@@ -570,7 +572,7 @@ ensure_server <- function(host = default_host(), port = default_port(),
                           protocol = default_protocol(), make_default = TRUE, supervise = FALSE,
                           validate = TRUE, validate_sleep = 0.1, validate_maxwait = 30, timeout = 3, ...){
   newly_started <- FALSE
-  if(!server_alive(port = port, host = host, protocol = protocol, timeout = timeout, ...)){
+  if(!server_alive(port = port, host = host, protocol = protocol, timeout = timeout)){
     newly_started <- TRUE
     start_server(host, port, protocol = protocol, make_default = FALSE, supervise = supervise, ...)
 
@@ -578,7 +580,7 @@ ensure_server <- function(host = default_host(), port = default_port(),
     Sys.sleep(1)
     if(validate){
       expire <- Sys.time() + validate_maxwait
-      while(!server_alive(port = port, host = host, protocol = protocol, timeout = timeout, ...)){
+      while(!server_alive(port = port, host = host, protocol = protocol, timeout = timeout)){
         # print("No")
         if(expire < Sys.time()){
           stop("Cannot create server at ", host, ":", port, "\nPlease manually start server using `restbatch::start_server` function.")

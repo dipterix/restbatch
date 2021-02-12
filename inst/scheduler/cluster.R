@@ -19,16 +19,17 @@ reg <- batchtools::loadRegistry(task_dir, work.dir = task_root, make.default = F
 # replace with parallel package
 # batchtools::makeClusterFunctionsSocket(workers, 1)
 
-if("windows" %in% .Platform$OS.type ||
-   stringr::str_detect(stringr::str_to_lower(R.version$os), '^win')){
-  # windows, use socket
-
-  reg$cluster.functions <- restbatch::makeClusterFunctionsSocket2(workers, 1)
-
-} else {
-  # use forked
-  reg$cluster.functions <- batchtools::makeClusterFunctionsMulticore(workers, 0)
-}
+reg$cluster.functions <- restbatch::makeClusterFunctionsSocket2(workers, 1)
+# if("windows" %in% .Platform$OS.type ||
+#    stringr::str_detect(stringr::str_to_lower(R.version$os), '^win')){
+#   # windows, use socket
+#
+#   reg$cluster.functions <- restbatch::makeClusterFunctionsSocket2(workers, 1)
+#
+# } else {
+#   # use forked
+#   reg$cluster.functions <- batchtools::makeClusterFunctionsMulticore(workers, 0)
+# }
 
 
 batchtools::sweepRegistry(reg = reg)

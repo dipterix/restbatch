@@ -29,7 +29,8 @@ default_host('10.0.0.217')
 
 
 task <- restbatch:::new_task2(function(x){
-  x + 1
+  Sys.sleep(1)
+  Sys.getpid()
 }, x = 1:3, task_name = "Test"); task
 
 # res <- task$submit(); task$collect()
@@ -41,11 +42,11 @@ task <- restbatch:::new_task2(function(x){
 # task$status()->s; s
 # task$collect()
 # task$host <- "10.0.0.132"
-task$port <- 7034
+# task$port <- 7034
 
 # res <- task$validate(); res
 res <- task$submit(); httr::content(res)
-
+task$collect()
 # restbatch:::db_backup(T)
 # restbatch:::db_get_task(userid = restbatch:::get_user(), client = FALSE, status = 'all')
 # restbatch:::db_get_task(userid = 'e5f6226c9f2e6874dd3a7f0944b13dcb', client = FALSE, status = 'all')

@@ -4,8 +4,6 @@ task <- restbatch:::new_task(function(x){
 
 
 
-
-
 future::plan(future::multisession)
 
 f <- future::future({
