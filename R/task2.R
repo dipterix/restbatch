@@ -150,7 +150,7 @@ task__server_status <- function(task){
         if(length(status$status)){
           status$error <- isTRUE(content$error > 0)
           status$timestamp <- as.POSIXct(content$time_added, origin="1970-01-01")
-          status$message = "OK"
+          status$message <- "OK"
           status$n_total <- as.integer(content$n_total)
           status$n_started <- as.integer(content$n_started)
           status$n_done <- as.integer(content$n_done)
@@ -311,20 +311,21 @@ task__remove <- function(task, wait = 0.01){
     })
     unlink(task$task_dir, recursive = TRUE)
   }
-  try({
-    # de-register from the database
-    # The task will be marked as "removed"
-    db_update_task_client(task)
-  }, silent = TRUE)
 
-  try({
-    if(!isin_server()){
-      request_server(path = 'task/remove', host = task$submitted_to$host,
-                     port = task$submitted_to$port, protocol = task$protocol,
-                     body = list(task_name = task$task_name))
-    }
-    return(TRUE)
-  }, silent = TRUE)
+  if(!isin_server()){
+    try({
+      # de-register from the database
+      # The task will be marked as "removed"
+      db_update_task_client(task)
+    }, silent = TRUE)
+
+    try({
+        request_server(path = 'task/remove', host = task$submitted_to$host,
+                       port = task$submitted_to$port, protocol = task$protocol,
+                       body = list(task_name = task$task_name))
+      return(TRUE)
+    }, silent = TRUE)
+  }
   return(FALSE)
 }
 task__zip <- function(task, target = tempfile(fileext = '.zip'), result_only = FALSE){
@@ -589,7 +590,7 @@ task__monitor <- function(task, mode = c("rstudiojob", "progress", "callback"), 
       mode <- 'progress'
     }
   } else if(mode == "callback" && is.null(callback)){
-    mode = "progress"
+    mode <- "progress"
   }
 
   switch (

@@ -1,10 +1,10 @@
 # A small 'RESTful' framework to run batch R scripts in the background
 
 <!-- badges: start -->
-  [![R-CMD-check](https://github.com/dipterix/restbench/workflows/R-CMD-check/badge.svg)](https://github.com/dipterix/restbench/actions)
+[![CRAN status](https://www.r-pkg.org/badges/version/restbatch)](https://CRAN.R-project.org/package=restbatch)
+[![R-CMD-check](https://github.com/dipterix/restbench/workflows/R-CMD-check/badge.svg)](https://github.com/dipterix/restbench/actions)
 <!-- badges: end -->
 
-> This package is still under development. A road map will be built on Github soon.
 
 Starts simple '[RESTful](https://restfulapi.net/)' R servers running batch jobs anywhere to unleash the computing power:
 
@@ -12,16 +12,14 @@ Starts simple '[RESTful](https://restfulapi.net/)' R servers running batch jobs 
 * Runs within a lab that has idle computers or servers (see [remote setups](#3-remote-setups))
 * Runs on a public server, see [network safety](#5-network-safety) and [remote setups](#3-remote-setups) (under construction)
 
-The package automatically queues and schedules R tasks that would run hours or days without blocking the main session. It runs even if you exit the main R session. The tasks can be monitored and inspected in multiple ways.
+The package automatically queues and schedules R tasks that would run hours or days without blocking the main session. It runs even if you exit the main R session. For example, you can run `shiny` app, schedule tasks that run for minutes without freezing the browser. If you have a server running the service, you can schedule batch jobs that runs over-night and pick the results up next morning. The tasks can be monitored and inspected in multiple ways.
 
 Try `restbatch` if you need to run R scripts in the background that take minutes, hours, or even days. Don't use `restbatch` if the tasks are micro-operations (use `clustermq` instead).
-
 
 ## 1. Installation
 
 ```r
-# install.packages("remotes")
-remotes::install_github("dipterix/restbatch")
+install.packages("restbatch")
 ```
 
 The package is to be on CRAN once fully tested

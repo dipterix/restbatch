@@ -96,17 +96,10 @@ run_task <- function(task, userid){
     # workers <- getOption('restbatch.max_concurrent_jobs', 1L)
     # reg$cluster.functions <- batchtools::makeClusterFunctionsSocket(workers, 1)
 
-    reg <- batchtools::loadRegistry(task_dir, work.dir = task_root, make.default = FALSE, writeable = TRUE)
+    force(task_dir)
+    force(task_root)
 
     eval(parse(file = getOption("restbatch.batch_cluster")))
-
-    batchtools::sweepRegistry(reg = reg)
-    batchtools::saveRegistry(reg = reg)
-
-    # This step may take time.
-    batchtools::submitJobs(reg = reg)
-    # batchtools::submitJobs(reg = reg, ids = 2:4)
-    batchtools::waitForJobs(reg = reg)
 
     cat("Sent: ", task$task_name, '\n')
   }, packages = c("restbatch"), seed = TRUE)
@@ -138,7 +131,7 @@ handler_unpack_task <- function(req){
     workers <- workers[[1]]
   }
 
-  task_name = req_header$restbatch.task_name
+  task_name <- req_header$restbatch.task_name
   packed <- (req_header$restbatch.standalone == TRUE)
 
   # unpack data
@@ -169,7 +162,7 @@ handler_unpack_task <- function(req){
   }
 
   # restore task
-  task_name = req_header$restbatch.task_name
+  task_name <- req_header$restbatch.task_name
   path <- get_task_path(task_name, asis = TRUE, userid = userid)
   suppressMessages({
     reg <- batchtools::loadRegistry(path, work.dir = root,

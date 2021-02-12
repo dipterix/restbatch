@@ -24,7 +24,6 @@ Imports:
     plumber,
     batchtools,
     future,
-    jsonlite,
     httr,
     httpuv,
     openssl,
@@ -33,10 +32,10 @@ Imports:
     later,
     RSQLite,
     stringr,
-    snow,
     base64enc,
     fastmap (>= 1.1.0)
 Suggests: 
+    snow,
     testthat (>= 3.0.0),
     rstudioapi (>= 0.13),
     shiny,

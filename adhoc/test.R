@@ -1,9 +1,10 @@
 require(restbatch)
 
 f <- '~/Desktop/junk/settings.yaml'
-conf <- yaml::read_yaml('inst/default_settings.yaml')
+conf <- yaml::read_yaml('inst/debug_settings.yaml')
 conf$options$debug = TRUE
 conf$options$require_auth = T
+conf$options$max_concurrent_jobs = 4
 yaml::write_yaml(conf, f)
 restbatch:::db_backup(T)
 
@@ -17,7 +18,7 @@ devtools::load_all();restbatch:::db_backup(T);p = restbatch::ensure_server(host 
 #   ff
 # }))
 # devtools::load_all();restbatch:::db_backup(T);
-restbatch:::start_server_internal(host = "10.0.0.132", port = 7034, settings = '~/Desktop/junk/settings.yaml')
+restbatch:::start_server_internal(port = 7034, settings = '~/Desktop/junk/settings.yaml')
 
 # p = restbatch::start_server(port = 7033)
 
@@ -28,15 +29,10 @@ default_host('10.0.0.217')
 
 
 task <- restbatch:::new_task2(function(x){
-  if(!exists('ee', envir = globalenv())){
-    assign('ee', new.env(), envir = globalenv())
-    ee$a <- x
-  }
-
-  list(ee, ee$a)
+  x + 1
 }, x = 1:3, task_name = "Test"); task
 
-res <- task$submit(); task$collect()
+# res <- task$submit(); task$collect()
 # task$reload_registry(TRUE)
 # task$reg$cluster.functions <- batchtools::makeClusterFunctionsSocket(1)
 # batchtools::submitJobs(reg = task$reg)
@@ -45,7 +41,7 @@ res <- task$submit(); task$collect()
 # task$status()->s; s
 # task$collect()
 # task$host <- "10.0.0.132"
-# task$port <- 7034
+task$port <- 7034
 
 # res <- task$validate(); res
 res <- task$submit(); httr::content(res)

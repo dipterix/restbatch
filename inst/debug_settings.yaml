@@ -2,7 +2,7 @@ host: '127.0.0.1'
 port: 7033
 protocol: http
 server_scripts:
-  startup_script: '{system.file("scheduler/startup.R", package = "restbatch")}'
+  startup_script: '{system.file("scheduler/debug.R", package = "restbatch")}'
   batch_cluster: '{system.file("scheduler/cluster.R", package = "restbatch")}'
 modules:
   task: '{system.file("scheduler/task.R", package = "restbatch")}'

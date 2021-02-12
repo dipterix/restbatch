@@ -222,7 +222,7 @@ local({
                 dipsaus::actionButtonStyled(ns("submit_task"), label = "Submit task", type = 'primary')
               )
             } else {
-              actions = shiny::span(style = "color:red;", "Cannot find task files. The task was removed from your hard drive.")
+              actions <- shiny::span(style = "color:red;", "Cannot find task files. The task was removed from your hard drive.")
             }
 
 

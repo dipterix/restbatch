@@ -42,7 +42,14 @@ watch_tasks <- function(release_speed){
           cat("Error while submitting/packing the task:", item$task$task_name,'\n')
           cat("Error message: ", e$message,'\n')
           print(e$call)
-          cat("Removing the task from the queue, set status as 'canceled'...",'\n')
+
+          if(!length(item$packing)){
+            # error not from packing the task, schedule error remove
+            cat("Removing the task from the server (delete)...",'\n')
+            item$task$remove(wait = 0)
+          } else {
+            cat("Removing the task from the queue, restart it later (defer)...",'\n')
+          }
           remove_task <<- TRUE
           ..server_status <<- -1L
         })

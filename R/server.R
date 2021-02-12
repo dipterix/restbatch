@@ -248,7 +248,7 @@ start_server_internal <- function(
     modules_require_auth <- getOption('restbatch.modules_require_auth_list')
 
     # Construct Router
-    root = plumber::pr()
+    root <- plumber::pr()
     current <- root
 
     # modules require validations
