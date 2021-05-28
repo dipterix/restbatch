@@ -4,7 +4,11 @@
 \alias{generate_service}
 \title{Generate script to install the 'restbatch' as Linux service}
 \usage{
-generate_service(save_settings_path = "~/.restbatch")
+generate_service(
+  host = "127.0.0.1",
+  port = 7033,
+  save_settings_path = "~/.restbatch"
+)
 }
 \arguments{
 \item{save_settings_path}{where to save the settings file}

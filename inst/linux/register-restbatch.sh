@@ -36,7 +36,7 @@ echo ""
 echo "To check the service status, enter"
 echo "  restbatch monitor"
 echo ""
-echo "The settings file is at /etc/default/restbatch.conf"
+echo "The settings file is at settings.yaml"
 echo ""
 
 

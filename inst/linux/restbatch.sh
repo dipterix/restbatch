@@ -10,6 +10,11 @@ then
   RSCRIPT_PATH=$(which Rscript)
 fi
 
+if [ -z ${RESTBATCH_SETTINGS+x} ];
+then
+  RESTBATCH_SETTINGS="GLUE_RESTBATCH_SETTINGS"
+fi
+
 function start {
   $RSCRIPT_PATH --no-save -e ".Last.value=yaml::read_yaml('$RESTBATCH_SETTINGS');restbatch:::start_server_internal(host=.Last.value\$host, port=.Last.value\$port, settings = '$RESTBATCH_SETTINGS')"
 }

@@ -1,7 +1,11 @@
 #' Generate script to install the 'restbatch' as Linux service
 #' @param save_settings_path where to save the settings file
 #' @export
-generate_service <- function(save_settings_path = "~/.restbatch"){
+generate_service <- function(
+  host = "127.0.0.1",
+  port = 7033,
+  save_settings_path = "~/.restbatch"
+){
 
   message(
     "You are trying to install `restbatch` as a linux service. Please make sure:\n",
@@ -36,15 +40,18 @@ generate_service <- function(save_settings_path = "~/.restbatch"){
   bashscr <- normalizePath(bashscr)
   Sys.chmod(bashscr, mode = "0777")
 
-  file.copy(sf('restbatch.sh'),
-            file.path(save_settings_path, 'restbatch.sh'),
-            overwrite = TRUE)
-
   settings_path <- file.path(save_settings_path, 'settings.yaml')
-  file.copy(system.file("default_settings.yaml", package = "restbatch"),
-            settings_path, overwrite = TRUE)
-
+  s <- yaml::read_yaml(system.file("default_settings.yaml", package = "restbatch"))
+  s$host <- host
+  s$port <- port
+  s$options$max_concurrent_tasks <- ceiling(future::availableCores() / 2)
+  yaml::write_yaml(s, settings_path)
   settings_path <- normalizePath(settings_path, mustWork = TRUE)
+
+
+  s <- readLines(sf('restbatch.sh'))
+  s <- sub("GLUE_RESTBATCH_SETTINGS", settings_path, s)
+  writeLines(s, file.path(save_settings_path, 'restbatch.sh'))
 
   writeLines(c(
     sprintf('RSCRIPT_PATH="%s"', file.path(R.home(component = "bin"), "Rscript")),
