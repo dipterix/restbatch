@@ -55,7 +55,18 @@ generate_service <- function(
   writeLines(c(
     sprintf('RSCRIPT_PATH="%s"', file.path(R.home(component = "bin"), "Rscript")),
     "# Settings file, string if quoted, or R command if unquoted",
-    'RESTBATCH_SETTINGS="/usr/local/etc/restbatch/settings.yaml"'
+    'RESTBATCH_SETTINGS="/usr/local/etc/restbatch/settings.yaml"',
+    sprintf('HOME="%s"', Sys.getenv("HOME")),
+    sprintf('R_HOME="%s"', Sys.getenv("R_HOME")),
+    sprintf('R_INCLUDE_DIR="%s"', Sys.getenv("R_INCLUDE_DIR")),
+    sprintf('R_LIBS_SITE="%s"', Sys.getenv("R_LIBS_SITE")),
+    sprintf('R_LIBS_USER="%s"', Sys.getenv("R_LIBS_USER")),
+    sprintf('R_USER_DATA_DIR="%s"', Sys.getenv("R_USER_DATA_DIR")),
+    sprintf('XDG_DATA_HOME="%s"', Sys.getenv("XDG_DATA_HOME")),
+    sprintf('R_USER_CONFIG_DIR="%s"', Sys.getenv("R_USER_CONFIG_DIR")),
+    sprintf('XDG_CONFIG_HOME="%s"', Sys.getenv("XDG_CONFIG_HOME")),
+    sprintf('R_USER_CACHE_DIR="%s"', Sys.getenv("R_USER_CACHE_DIR")),
+    sprintf('XDG_CACHE_HOME="%s"', Sys.getenv("XDG_CACHE_HOME")),
   ), file.path(save_settings_path, "restbatch.conf"))
 
   message("\n\nThe setup file has been exported. Please run the following command in shell (bash):")

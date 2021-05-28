@@ -7,7 +7,9 @@
 
 if [ -z ${RSCRIPT_PATH+x} ];
 then
-  RSCRIPT_PATH=$(which Rscript)
+  set -a
+  source "/usr/local/etc/restbatch/restbatch.conf"
+  set +a
 fi
 
 if [ -z ${RESTBATCH_SETTINGS+x} ];
