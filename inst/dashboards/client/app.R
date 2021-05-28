@@ -414,7 +414,12 @@ local({
     }, options = list(launch.browser = TRUE)
   )
   # check if this is rstudio
-  print(shiny_app)
+  tryCatch({
+    shiny::runApp(shiny_app, host = "0.0.0.0", launch.browser = TRUE)
+  }, error = function(e){
+    shiny::runApp(shiny_app, host = "0.0.0.0", launch.browser = FALSE)
+  })
+
 })
 
 

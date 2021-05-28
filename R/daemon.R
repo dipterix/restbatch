@@ -9,7 +9,8 @@ generate_service <- function(
 
   message(
     "You are trying to install `restbatch` as a linux service. Please make sure\n",
-    "  this is a linux (Ubuntu, Debian)\n",
+    "  1. this is a linux (Ubuntu, Debian)\n",
+    "  2. you have sudo access\n",
     "This function will generate a folder at  ",
     save_settings_path,
     "\nPlease edit the settings.yaml file carefully."
