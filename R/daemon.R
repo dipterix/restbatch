@@ -48,10 +48,10 @@ generate_service <- function(save_settings_path = "~/.restbatch"){
     sprintf('RSCRIPT_PATH="%s"', file.path(R.home(component = "bin"), "Rscript")),
     "# Settings file, string if quoted, or R command if unquoted",
     sprintf('RESTBATCH_SETTINGS="%s"', settings_path)
-  ))
+  ), file.path(settings_path, "restbatch.conf"))
 
   message("The setup file has been exported. Please run the following command in shell (bash):")
-  cat("sudo bash", bashscr, sep = " ")
+  cat("sudo bash", bashscr, "\n", sep = " ")
 
 
 }
