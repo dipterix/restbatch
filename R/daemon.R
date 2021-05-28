@@ -28,19 +28,21 @@ generate_service <- function(save_settings_path = "~/.restbatch"){
   }
 
   file.copy(sf('restbatch.service'),
-            file.path(save_settings_path, 'restbatch.service'))
+            file.path(save_settings_path, 'restbatch.service'),
+            overwrite = TRUE)
 
   bashscr <- file.path(save_settings_path, 'register-restbatch.sh')
-  file.copy(sf('register-restbatch.sh'), bashscr)
+  file.copy(sf('register-restbatch.sh'), bashscr, overwrite = TRUE)
   bashscr <- normalizePath(bashscr)
   Sys.chmod(bashscr, mode = "0777")
 
   file.copy(sf('restbatch.sh'),
-            file.path(save_settings_path, 'restbatch.sh'))
+            file.path(save_settings_path, 'restbatch.sh'),
+            overwrite = TRUE)
 
   settings_path <- file.path(save_settings_path, 'settings.yaml')
   file.copy(system.file("default_settings.yaml", package = "restbatch"),
-            settings_path)
+            settings_path, overwrite = TRUE)
 
   settings_path <- normalizePath(settings_path, mustWork = TRUE)
 
