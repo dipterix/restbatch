@@ -6,7 +6,8 @@ request_authinfo <- function(req){
 
   authorization <- as.list(req$HEADERS)$authorization
   authorization <- stringr::str_remove(authorization, "^Basic[ ]*")
-  authorization <- rawToChar(base64enc::base64decode(authorization))
+  # authorization <- rawToChar(base64enc::base64decode(authorization))
+  authorization <- dipsaus::base64_to_string(authorization)
   authorization <- stringr::str_split_fixed(authorization, ":", 2)
 
   userid <- authorization[[1]]
@@ -226,7 +227,8 @@ handler_validate_server <- function(req){
 authenticate <- function(req, res){
   authorization <- as.list(req$HEADERS)$authorization
   authorization <- stringr::str_remove(authorization, "^Basic[ ]*")
-  authorization <- rawToChar(base64enc::base64decode(authorization))
+  # authorization <- rawToChar(base64enc::base64decode(authorization))
+  authorization <- dipsaus::base64_to_string(authorization)
   authorization <- stringr::str_split_fixed(authorization, ":", 2)
 
   userid <- authorization[[1]]

@@ -1,0 +1,20 @@
+# service name:     restbatch.service
+# path:             /lib/systemd/system/restbatch.service
+
+[Unit]
+Description=R-restbatch Server
+
+[Service]
+Type=simple
+PIDFile=/run/restbatch.pid
+EnvironmentFile=/etc/default/restbatch.conf
+
+ExecStart=/usr/sbin/restbatch start
+ExecStop=/usr/sbin/restbatch stop
+
+Restart=always
+RestartSec=10
+#KillMode=mixed
+
+[Install]
+WantedBy=multi-user.target

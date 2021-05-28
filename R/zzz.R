@@ -12,7 +12,7 @@
 
   .globals <- dipsaus::fastmap2()
   .globals$servers <- dipsaus::fastmap2()
-  .globals$tasks <- fastmap::fastqueue()
+  .globals$tasks <- dipsaus::fastqueue2()
   .globals$running <- dipsaus::fastmap2()
   .globals$paused <- TRUE
   .globals$watchers <- 0

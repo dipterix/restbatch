@@ -5,10 +5,9 @@ Version: 0.1.0
 Authors@R: c(
     person("Zhengjia", "Wang", email = "dipterix.wang@gmail.com", role = c("aut", "cre"))
     )
-Description: Starts web services accepting 'http' requests, automatically
-    receive, schedule and scale the tasks via the package 'batchtools' as
-    the backend. Provides integration to monitor the submitted tasks in 
-    'RStudio' or 'Shiny' apps.
+Description: Starts web services that automatically receive, schedule, and 
+    scale up the tasks via the package 'batchtools' as the backend. Provides 
+    integration to monitor the submitted tasks in 'RStudio' or 'Shiny' apps.
 URL: https://github.com/dipterix/restbatch
 BugReports: https://github.com/dipterix/restbatch/issues
 License: GPL-3
@@ -20,25 +19,25 @@ Depends: R (>= 3.6.0)
 Imports:
     utils,
     yaml,
-    dipsaus,
-    plumber,
-    batchtools,
+    dipsaus (>= 0.1.5),
+    plumber (>= 1.0.0),
+    batchtools (>= 0.9.15),
     future,
-    httr,
-    httpuv,
-    openssl,
-    DBI,
+    httr (>= 1.4.2),
+    httpuv (>= 1.5.4),
+    openssl (>= 1.4.3),
+    DBI (>= 1.1.1),
     glue,
-    later,
-    RSQLite,
-    stringr,
-    base64enc,
-    fastmap (>= 1.1.0)
+    later (>= 1.1.0.1),
+    RSQLite (>= 2.2.3),
+    stringr
 Suggests: 
     snow,
+    base64enc,
+    fastmap (>= 1.1.0),
     testthat (>= 3.0.0),
     rstudioapi (>= 0.13),
-    shiny,
+    shiny (>= 1.5.0),
     shinydashboard,
     knitr,
     rmarkdown
