@@ -5,12 +5,17 @@
 # restbatch stop:
 #  * Undo start
 
+if [ -z ${RSCRIPT_PATH+x} ];
+then
+  RSCRIPT_PATH=$(which Rscript)
+fi
+
 function start {
-  $RSCRIPT_PATH --no-save -e "..sf=$RESTBATCH_SETTINGS; .Last.value=yaml::read_yaml(..sf);restbatch:::start_server_internal(host=.Last.value\$host, port=.Last.value\$port, settings = ..sf)"
+  $RSCRIPT_PATH --no-save -e ".Last.value=yaml::read_yaml('$RESTBATCH_SETTINGS');restbatch:::start_server_internal(host=.Last.value\$host, port=.Last.value\$port, settings = ..sf)"
 }
 
 function stop {
-  $RSCRIPT_PATH --no-save -e ".Last.value=$RESTBATCH_SETTINGS;.Last.value=yaml::read_yaml(.Last.value);restbatch::stop_server(host = .Last.value\$host,port = .Last.value\$port)"
+  $RSCRIPT_PATH --no-save -e ".Last.value=yaml::read_yaml('$RESTBATCH_SETTINGS');restbatch::stop_server(host = .Last.value\$host,port = .Last.value\$port)"
 }
 
 function monitor {
