@@ -8,10 +8,9 @@ generate_service <- function(
 ){
 
   message(
-    "You are trying to install `restbatch` as a linux service. Please make sure:\n",
-    "  1. this is a linux (Ubuntu, Debian)\n",
-    "  2. you are the administrator\n",
-    "This function will generate a folder at \n  ",
+    "You are trying to install `restbatch` as a linux service. Please make sure\n",
+    "  this is a linux (Ubuntu, Debian)\n",
+    "This function will generate a folder at  ",
     save_settings_path,
     "\nPlease edit the settings.yaml file carefully."
   )
@@ -22,8 +21,8 @@ generate_service <- function(
     return(invisible())
   }
 
-
   dir_create2(save_settings_path)
+  dir_create2("~/.config/systemd/user/")
 
   Sys.chmod(save_settings_path, "0777")
 
@@ -50,17 +49,16 @@ generate_service <- function(
 
 
   s <- readLines(sf('restbatch.sh'))
-  s <- sub("GLUE_RESTBATCH_SETTINGS", settings_path, s)
   writeLines(s, file.path(save_settings_path, 'restbatch.sh'))
 
   writeLines(c(
     sprintf('RSCRIPT_PATH="%s"', file.path(R.home(component = "bin"), "Rscript")),
     "# Settings file, string if quoted, or R command if unquoted",
-    sprintf('RESTBATCH_SETTINGS="%s"', settings_path)
+    'RESTBATCH_SETTINGS="/usr/local/etc/restbatch/settings.yaml"'
   ), file.path(save_settings_path, "restbatch.conf"))
 
-  message("The setup file has been exported. Please run the following command in shell (bash):")
-  cat("sudo bash", bashscr, "\n", sep = " ")
+  message("\n\nThe setup file has been exported. Please run the following command in shell (bash):")
+  cat("bash", bashscr, "\n", sep = " ")
 
 
 }

@@ -1,5 +1,5 @@
 # service name:     restbatch.service
-# path:             /lib/systemd/system/restbatch.service
+# path:             ~/.config/systemd/user/restbatch.service
 
 [Unit]
 Description=R-restbatch Server
@@ -7,10 +7,10 @@ Description=R-restbatch Server
 [Service]
 Type=simple
 PIDFile=/run/restbatch.pid
-EnvironmentFile=/etc/default/restbatch.conf
+EnvironmentFile=/usr/local/etc/restbatch/restbatch.conf
 
-ExecStart=/usr/sbin/restbatch start
-ExecStop=/usr/sbin/restbatch stop
+ExecStart=/usr/local/sbin/restbatch start
+ExecStop=/usr/local/sbin/restbatch stop
 
 Restart=always
 RestartSec=10

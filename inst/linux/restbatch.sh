@@ -12,7 +12,7 @@ fi
 
 if [ -z ${RESTBATCH_SETTINGS+x} ];
 then
-  RESTBATCH_SETTINGS="GLUE_RESTBATCH_SETTINGS"
+  RESTBATCH_SETTINGS="/usr/local/etc/restbatch/settings.yaml"
 fi
 
 function start {
