@@ -4,12 +4,18 @@ echo "===================================="
 echo "Requirement: sudo"
 echo "===================================="
 
-set -e
+
 
 # Must in sudo mode
-# sudo true
+
 
 BASEDIR=$(dirname "$0")
+
+sudo systemctl is-active --quiet restbatch.service && sudo systemctl stop restbatch.service
+
+set -e
+
+sudo true
 
 sudo cp "$BASEDIR/restbatch.service" /lib/systemd/system/restbatch.service
 sudo chmod 0644 /lib/systemd/system/restbatch.service

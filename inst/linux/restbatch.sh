@@ -11,7 +11,7 @@ then
 fi
 
 function start {
-  $RSCRIPT_PATH --no-save -e ".Last.value=yaml::read_yaml('$RESTBATCH_SETTINGS');restbatch:::start_server_internal(host=.Last.value\$host, port=.Last.value\$port, settings = ..sf)"
+  $RSCRIPT_PATH --no-save -e ".Last.value=yaml::read_yaml('$RESTBATCH_SETTINGS');restbatch:::start_server_internal(host=.Last.value\$host, port=.Last.value\$port, settings = '$RESTBATCH_SETTINGS')"
 }
 
 function stop {
