@@ -1,6 +1,4 @@
-#' Generate script to install the 'restbatch' as Linux service
-#' @param save_settings_path where to save the settings file
-#' @export
+
 generate_service <- function(
   host = "127.0.0.1",
   port = 7033,
@@ -66,7 +64,7 @@ generate_service <- function(
     sprintf('R_USER_CONFIG_DIR="%s"', Sys.getenv("R_USER_CONFIG_DIR")),
     sprintf('XDG_CONFIG_HOME="%s"', Sys.getenv("XDG_CONFIG_HOME")),
     sprintf('R_USER_CACHE_DIR="%s"', Sys.getenv("R_USER_CACHE_DIR")),
-    sprintf('XDG_CACHE_HOME="%s"', Sys.getenv("XDG_CACHE_HOME")),
+    sprintf('XDG_CACHE_HOME="%s"', Sys.getenv("XDG_CACHE_HOME"))
   ), file.path(save_settings_path, "restbatch.conf"))
 
   message("\n\nThe setup file has been exported. Please run the following command in shell (bash):")

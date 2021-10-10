@@ -146,7 +146,12 @@ task__server_status <- function(task){
     content <- httr::content(res)
     if(length(content)){
       if(isTRUE(content$name == task$task_name)){
-        status$status <- STATUS_CODE[[sprintf("%.0f", content$status)]]
+        if(is.character(content$status)){
+          status$status <- content$status
+        } else {
+          status$status <- STATUS_CODE[[sprintf("%.0f", content$status)]]
+        }
+
         if(length(status$status)){
           status$error <- isTRUE(content$error > 0)
           status$timestamp <- as.POSIXct(content$time_added, origin="1970-01-01")
@@ -221,6 +226,10 @@ task__resolved <- function(task){
       stop("Job has been canceled by the server.")
     }
 
+    if(!length(status$n_total)){
+      stop("Server has removed the task.")
+    }
+
   }, error = function(e){
 
     # Server is not running
@@ -228,7 +237,7 @@ task__resolved <- function(task){
     if(s$done + s$error >= task$njobs && s$running == 0){
       return(TRUE)
     } else {
-      stop("\nFailed to get tasks status from the server.\nServer is shutdown or the task is canceled.\n\nAdditional message: \n", e)
+      stop("\nFailed to get tasks status from the server.\nServer is shutdown or the task is canceled/removed.\n\nAdditional message: \n", e)
     }
 
   })
