@@ -19,18 +19,18 @@ Depends: R (>= 3.6.0)
 Imports:
     utils,
     yaml,
-    dipsaus (>= 0.1.5),
+    dipsaus (>= 0.1.8),
     plumber (>= 1.0.0),
     batchtools (>= 0.9.15),
-    future,
+    future (>= 1.22.1),
     httr (>= 1.4.2),
     httpuv (>= 1.5.4),
     openssl (>= 1.4.3),
     DBI (>= 1.1.1),
-    glue,
+    glue (>= 1.4.2),
     later (>= 1.1.0.1),
     RSQLite (>= 2.2.3),
-    stringr
+    stringr (>= 1.4.0)
 Suggests: 
     snow,
     base64enc,
